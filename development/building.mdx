@@ -1,0 +1,180 @@
+---
+title: "Build and Run CollaboKeys from Source"
+sidebarTitle: "Building"
+description: "Build the CollaboKeys Electron app from source, compile the native C keyboard helper, and package a distributable macOS DMG using electron-builder."
+---
+
+This guide walks you through cloning the CollaboKeys repository, installing dependencies, compiling the native macOS keyboard helper, and running or packaging the application. By the end you will have a working development environment and an understanding of all available run modes.
+
+## Prerequisites
+
+Before you begin, make sure the following are available on your Mac:
+
+- **Node.js** (LTS recommended) — [nodejs.org](https://nodejs.org/en/download)
+- **npm** — bundled with Node.js
+- **macOS** — the server and native helper are macOS-only; Linux and Windows are not supported
+- **clang** — required to compile `helper.c`; ships with Xcode Command Line Tools
+
+<Note>
+Install the Xcode Command Line Tools by running `xcode-select --install` in Terminal if you don't already have them. This provides both `clang` and the `ApplicationServices` framework headers needed to compile the keyboard helper.
+</Note>
+
+## Setup
+
+<Steps>
+
+<Step title="Clone the repository">
+
+```shell
+git clone https://github.com/tinkerer9/CollaboKeys.git
+cd CollaboKeys
+```
+
+</Step>
+
+<Step title="Install Node.js dependencies">
+
+```shell
+npm install
+```
+
+This installs all runtime and development dependencies declared in `package.json`, including `socket.io`, `winston`, `electron`, and `electron-builder`.
+
+</Step>
+
+<Step title="Compile the native keyboard helper">
+
+The keyboard emulation layer relies on a native C binary (`src/emulate/helper`) that calls macOS `CGEventPost`. You must compile it before running CollaboKeys for the first time:
+
+```shell
+npm run compile
+```
+
+This runs the following `clang` command internally:
+
+```shell
+clang src/emulate/helper.c \
+  -framework ApplicationServices \
+  -arch arm64 \
+  -arch x86_64 \
+  -O3 \
+  -o src/emulate/helper
+```
+
+The flags produce a **universal binary** that runs natively on both Apple Silicon and Intel Macs. The output binary is placed at `src/emulate/helper`.
+
+<Warning>
+CollaboKeys will fail to emulate any keypresses if you skip this step. The `npm start` command does **not** run `compile` automatically — you must run it at least once after cloning, and again any time `helper.c` is modified.
+</Warning>
+
+</Step>
+
+<Step title="Grant Accessibility permission">
+
+The first time you run CollaboKeys, macOS will prompt you to grant Accessibility permission so the app can emulate keyboard events system-wide. Click **Open System Settings** and enable CollaboKeys (or the Terminal entry, when running `npm test`) in **Privacy & Security → Accessibility**.
+
+</Step>
+
+</Steps>
+
+## Running CollaboKeys
+
+Once setup is complete, you have three ways to run the application.
+
+### `npm start` — Full Electron app
+
+```shell
+npm start
+```
+
+Launches CollaboKeys as a full Electron desktop application. This is the intended production experience. It:
+
+- Shows the splash screen while the server starts
+- Opens the admin panel automatically in the Electron window
+- Prevents display sleep (configurable in `config.json`)
+- Prompts for Accessibility permission if not already granted
+
+### `npm test` — Headless Node.js server
+
+```shell
+npm test
+```
+
+Runs `node src/server.js` directly — no Electron, no window, no splash screen. The server starts and prints its URI to the terminal. All CLI console commands work normally. This mode is useful for development and automated testing since it starts faster and has no UI dependencies.
+
+<Tip>
+Use `npm test` when iterating on server-side logic. You can send test keypresses using the `press <key>` console command without needing a connected player.
+</Tip>
+
+### `npm run build` — Package as macOS app
+
+```shell
+npm run build
+```
+
+This command runs `npm run compile` first (recompiling the native helper), then runs `electron-builder` to package the app. The output is placed in the `dist/` folder and includes:
+
+- A `.app` bundle
+- A `.dmg` disk image for distribution
+
+### `npm run release` — Build and publish
+
+```shell
+npm run release
+```
+
+Identical to `npm run build` but passes `--publish always` to `electron-builder`, which publishes the built artifacts to GitHub Releases.
+
+## electron-builder Configuration
+
+The packaging behaviour is defined in `electron-builder.yml`:
+
+```yaml
+appId: com.collabokeys.app
+productName: CollaboKeys
+mac:
+    icon: images/icon.icns
+    target: dmg
+    category: public.app-category.utilities
+    identity: null
+extraResources:
+  - from: src/emulate/helper
+    to: helper
+files:
+  - node_modules/**
+  - "!node_modules/**/README*"
+  - "!node_modules/**/*.md"
+  - "!node_modules/**/*.map"
+  - src/**
+  - package.json
+  - LICENSE
+```
+
+Key points:
+
+- **`appId`** is set to `com.collabokeys.app`.
+- **`icon`** is loaded from `images/icon.icns`.
+- The **target** is `dmg`, producing a macOS disk image.
+- **`category`** is `public.app-category.utilities`.
+- **`identity: null`** disables code signing — the app is not signed or notarized through Apple's Developer Program. See the [Security](/development/security) page for implications.
+- The compiled native helper is bundled as an **`extraResource`**: it is copied from `src/emulate/helper` to `{app.app}/Contents/Resources/helper` at build time.
+
+### Packaged vs. development helper path
+
+`keyboard.js` uses `Variables.electronPackaged` (set from `app.isPackaged` in `main.js`) to resolve the correct path to the helper binary at runtime:
+
+```javascript
+const helperPath = Variables.electronPackaged
+    ? path.join(process.resourcesPath, "helper")   // packaged .app
+    : path.join(__dirname, "helper");               // development
+```
+
+This means the same `keyboard.js` code works in both `npm start` (development, reads from `src/emulate/helper`) and a packaged `.app` (reads from the bundled `resources/helper`).
+
+<Note>
+After building a `.dmg`, end users who download it will see a macOS Gatekeeper warning because the app is unsigned. They can remove the quarantine flag with:
+
+```shell
+xattr -dr com.apple.quarantine /Applications/CollaboKeys.app
+```
+</Note>

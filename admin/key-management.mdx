@@ -1,0 +1,174 @@
+---
+title: "Managing Key Assignments and Emulation in CollaboKeys"
+sidebarTitle: "Key Management"
+description: "Control which keys are enabled for emulation, revoke player key assignments, and manage auto-reservation behavior from the admin panel or console."
+---
+
+CollaboKeys gives you two distinct levers for controlling what happens when a player presses a key: **key assignment** (which player owns a particular key) and **key enabled status** (whether a key can be emulated at all, regardless of who owns it). Understanding both is essential for running a smooth session.
+
+## Key Assignment
+
+### How Auto-Reservation Works
+
+When `allowReservationAtStart` is `true` (the default) and a player presses a key that no one owns yet, that key is automatically assigned to them. From that point on, only that player can press the key. Other players who try to press the same key receive a message: *"[key] is already reserved."*
+
+If `allowReservationAtStart` is `false` at startup, or auto-reservation is later disabled with `disable reservation`, players who press an unassigned key receive the message: *"Auto-reservation is disabled by admin."*
+
+### Revoking Key Assignments
+
+Revoking a key clears its ownership so any player can claim it on their next press.
+
+```bash
+# Revoke one key
+key revoke a
+
+# Revoke all key assignments at once
+key revoke all
+```
+
+From the admin panel, use the key management control: select **revoke** in the first dropdown and either **all keys** or **specific key** (with the key name typed in the text field), then click **run**.
+
+<Note>
+  When a player disconnects, the server automatically calls `freeAssignment` for their player ID, which revokes every key they held. You do not need to revoke keys manually after a player leaves.
+</Note>
+
+### Limiting Keys Per Player
+
+You can cap how many keys each player may hold simultaneously using the `player.maxReservedKeys` config option:
+
+```json
+{
+  "player": {
+    "maxReservedKeys": 3
+  }
+}
+```
+
+| Config key | Default | Effect |
+|---|---|---|
+| `player.maxReservedKeys` | `0` | Maximum keys per player; `0` means no limit |
+
+When a player tries to claim a new key after reaching the limit, they see: *"You can't reserve any more keys."*
+
+---
+
+## Key Enabled / Disabled Status
+
+Every key in the keycodes table has an enabled flag independent of its assignment. Disabled keys cannot be emulated even if a player has them assigned — pressing them produces the message: *"[key] is disabled by admin."*
+
+### Keys Disabled by Default
+
+Some keys are disabled out of the box to prevent accidental system-level interference:
+
+- Modifier keys: `shift`, `caps lock`, `delete`, `tab`, `command`, `option`, `control`, `esc`
+- Function keys: F1–F20
+
+### Enabling Keys
+
+```bash
+# Enable a specific key
+key enable space
+key enable 'caps lock'
+
+# Enable all keys at once
+key enable all
+```
+
+### Disabling Keys
+
+```bash
+# Disable a specific key
+key disable 'caps lock'
+key disable command
+
+# Disable all keys at once
+key disable all
+```
+
+<Warning>
+  Running `key disable all` blocks emulation for every key immediately. Players who already have keys assigned will retain their assignments but will not be able to use any of them until you re-enable keys selectively or run `key enable all`.
+</Warning>
+
+<Tip>
+  Visit `/keycodes` on the server to see a live table of every key's current enabled status and player assignment. You can also click the **list keycodes** button on the admin panel to open this table in a new tab.
+</Tip>
+
+---
+
+## Emulation Toggle
+
+The emulation toggle is a global switch that controls whether **any** keypress from **any** player reaches the host operating system.
+
+```bash
+# Stop all key forwarding
+disable emulation
+
+# Resume key forwarding
+enable emulation
+```
+
+From the admin panel, use the enable/disable dropdown, select **emulation** in the second dropdown, and click **run**.
+
+| Config key | Default | Effect |
+|---|---|---|
+| `allowEmulationAtStart` | `true` | Whether emulation is active when the server first starts |
+
+When emulation is disabled, players who press keys see: *"Emulation is disabled by admin."* Their key assignments are preserved; no keys are revoked.
+
+<Note>
+  Disabling emulation is the safest way to temporarily pause all input while you navigate the host's desktop, switch games, or step away — without disconnecting players or losing their key assignments.
+</Note>
+
+---
+
+## Auto-Reservation Toggle
+
+Auto-reservation controls whether players can **claim new keys**. Disabling it freezes the current assignment state: players who already own keys can still use them, but no unassigned key can be claimed.
+
+```bash
+# Prevent new key claims
+disable reservation
+
+# Allow new key claims again
+enable reservation
+```
+
+| Config key | Default | Effect |
+|---|---|---|
+| `allowReservationAtStart` | `true` | Whether auto-reservation is active when the server first starts |
+
+<Tip>
+  Disabling auto-reservation mid-game is useful if you want to lock in the current key distribution after all players have claimed their keys — preventing latecomers from grabbing keys that were momentarily released.
+</Tip>
+
+---
+
+## Rate Limiting
+
+CollaboKeys enforces a global keypress rate limit to prevent input flooding.
+
+```json
+{
+  "maxKeypressesPerMinute": 150
+}
+```
+
+| Config key | Default | Effect |
+|---|---|---|
+| `maxKeypressesPerMinute` | `150` | Maximum combined keypresses per minute across all players; `0` disables the limit |
+
+When the limit is reached, any player who tries to press a key receives: *"The global keypress limit has been reached. Please wait [N] seconds."* The counter resets automatically at the start of each clock minute.
+
+<Warning>
+  The rate limit is global, not per-player. A single player pressing keys rapidly can exhaust the budget for everyone else. Lower the limit or set it to `0` depending on your game's needs.
+</Warning>
+
+---
+
+## Viewing Current Key State
+
+To inspect which keys are assigned, enabled, or disabled at any time:
+
+- **Admin panel:** Click **list keycodes** — opens `/keycodes` in a new tab with a full live table.
+- **Console:** Run `keycodes` to print the table directly in the terminal.
+- **Browser:** Visit `http://<host-ip>:<port>/keycodes` from any device on the network.

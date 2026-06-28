@@ -1,0 +1,59 @@
+---
+title: "Which Games Are Compatible with CollaboKeys"
+sidebarTitle: "Compatible Games"
+description: "Any game that uses only keyboard input with a number of keys equal to or greater than the number of players is compatible with CollaboKeys."
+---
+
+CollaboKeys is designed to work with any keyboard-driven game, but not every game is a good fit. The key question to ask is: does the game give every player at least one key to own? If yes — and if the game uses only keyboard input — you are ready to play.
+
+## Compatibility Requirements
+
+A game is compatible with CollaboKeys if **all three** of the following are true:
+
+1. **The game uses only keypresses for input** — no mouse clicks, mouse movement, scroll wheel, or gamepad input. CollaboKeys can only emulate keyboard events.
+2. **All keys used in the game are in the supported keys list** — every key the game relies on must exist in `keycodes.js` and be enabled. See [Supported Keys](/gameplay/supported-keys) for the full list.
+3. **The game has at least as many keys as there are players** — since each player owns a unique subset of keys, there must be enough distinct keys for everyone to have at least one.
+
+## Good Game Types
+
+<CardGroup cols={2}>
+  <Card title="Racing Games" icon="flag-checkered">
+    Games controlled with the four arrow keys are a natural fit. With four players, each person can take one direction key — left, right, accelerate, and brake. Communication (or lack of it!) makes every race chaotic and fun.
+  </Card>
+  <Card title="Platformers" icon="gamepad">
+    Platformers typically use arrow keys plus Space (jump) and sometimes Shift (run). With five or six players, everyone has a meaningful role. Coordinating a jump while someone else handles movement creates great moments.
+  </Card>
+  <Card title="Puzzle Games" icon="puzzle-piece">
+    Turn-based and tile-sliding puzzle games are ideal because timing pressure is low. Players have time to discuss which key to press next, making these games collaborative rather than chaotic.
+  </Card>
+  <Card title="Party Games" icon="party-horn">
+    Simple browser-based party games with small control schemes work perfectly. Since players are already in a browser to run CollaboKeys, browser-based games need no extra setup at all.
+  </Card>
+</CardGroup>
+
+## Featured Example: 2048
+
+[2048](https://2048-online.io) is a perfect CollaboKeys game. It uses exactly four keys — the four arrow keys — making it ideal for four players where each person owns exactly one direction.
+
+<Tip>
+  Try playing 2048 **without** communicating with your teammates. The chaotic results add an extra layer of challenge on top of the already-difficult puzzle. Can you reach the 2048 tile despite pulling in different directions?
+</Tip>
+
+## Tips for Choosing Games
+
+- **Fewer controls = easier coordination.** Games with four to six keys are the sweet spot for four to six players. The more keys a game needs, the harder it becomes to split them evenly and meaningfully.
+- **Check the key list first.** Before starting a session, verify that every key the game uses is on the [Supported Keys](/gameplay/supported-keys) list and enabled. Common issues arise with games that use `Escape` (to pause) or `Shift` (to run) — both disabled by default.
+- **Enable modifier keys deliberately.** If a game requires `Shift` or `Control`, an admin can enable them with `key enable Shift`. Just be aware that modifier keys can interfere with macOS system shortcuts if pressed in the wrong context.
+- **Browser-based games need no extra setup.** Since players are already in a browser window, a browser game on the host's screen is the simplest setup — no switching windows, no focus issues.
+- **Test in the admin panel first.** Use the `press <key> down` console command or admin page to verify that the game is receiving keystrokes before inviting players to join.
+
+## What Doesn't Work
+
+<Warning>
+  The following types of games are **not compatible** with CollaboKeys:
+
+  - **Games requiring mouse input** — CollaboKeys cannot emulate mouse clicks or movement.
+  - **Games requiring keys outside the supported set** — if a game uses keys that are not in `keycodes.js` (e.g. numpad keys), those inputs cannot be forwarded.
+  - **Real-time action games requiring simultaneous multi-key holds by one player** — since each player owns only their own keys, no single player can hold a modifier and a letter at the same time unless both keys happen to be assigned to them. Games that depend on combos like `Ctrl+Z` or `Shift+Arrow` require modifier keys to be enabled and may be difficult to coordinate.
+  - **Games with more required keys than there are players** — if every key is essential and there are not enough players to cover them all, some actions will be unavailable.
+</Warning>

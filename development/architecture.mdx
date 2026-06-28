@@ -1,0 +1,307 @@
+---
+title: "CollaboKeys Architecture: Electron, Socket.IO, and Native Emulation"
+sidebarTitle: "Architecture"
+description: "CollaboKeys is built on Electron (host shell), a Node.js/Socket.IO server, a browser-based player client, and a native C helper for macOS keyboard emulation."
+---
+
+CollaboKeys is a macOS Electron application layered across four concerns: the Electron shell that creates the host window and requests system permissions; a Node.js HTTP and Socket.IO server that accepts player and admin connections; a set of business-logic modules that validate, assign, and emit keypress events; and a native C subprocess that translates those events into real macOS `CGEventPost` calls via the Core Graphics framework. These layers are designed so the server can also run without Electron (via `npm test`) by calling `node src/server.js` directly.
+
+## Module Breakdown
+
+### `src/main.js` — Electron entry point
+
+`main.js` is the Electron entry point declared in `package.json` as `"main"`. When the app is ready it:
+
+1. Reads `Variables.electronPackaged` and `Variables.userDataPath` from `app.isPackaged` and `app.getPath("userData")` before any other module loads, so downstream modules can locate log files and the compiled helper.
+2. Creates a `BrowserWindow` (1200×800, dark background, no node integration) and immediately loads the splash screen from `src/public/splash/index.html`.
+3. Calls `startServer()` from `server.js`, waits for the configured `splashScreenTime`, then navigates the window to `http://localhost:{port}/admin`.
+4. Calls `systemPreferences.isTrustedAccessibilityClient(true)` to prompt for the macOS Accessibility permission required for keyboard emulation.
+5. Optionally calls `powerSaveBlocker.start("prevent-display-sleep")` to keep the display awake during a session.
+
+<Note>
+`main.js` intentionally sets `Variables.electronPackaged` before importing any other local module. This ensures `log.js` and `keyboard.js` can resolve the correct paths for log files and the helper binary at startup.
+</Note>
+
+---
+
+### `src/server.js` — Core server
+
+`server.js` is the heart of CollaboKeys. It:
+
+- Creates the HTTP server via `Router.createServer()` and wraps it in a Socket.IO `Server` instance.
+- Creates the `/admin` Socket.IO namespace: `const admin = io.of("/admin")`.
+- Stores both namespace references in `Variables` and registers the `AdminPageTransport` on the admin namespace so Winston logs are streamed to admin clients in real time.
+- Handles the player lifecycle on the default `/` namespace: connection → `setName` → `keydown`/`keyup` → `disconnect`.
+- Handles the admin lifecycle on `/admin`: connection → optional auto-authentication → `authenticate` → `command` → `disconnect`.
+- Exports `startServer()`, which tries each port from `config.json` in order (falling back to port `0` for a random OS-assigned port) and resolves with the bound port number.
+
+When run directly (`node src/server.js`), `server.js` calls `startServer()` itself, enabling headless terminal mode.
+
+---
+
+### `src/router.js` — HTTP server
+
+`router.js` creates the `http.Server` instance that both serves static files and handles two special routes:
+
+| Route | Behaviour |
+|---|---|
+| `/keycodes` | Returns the plain-text keycodes table from `makeKeycodesTable()` |
+| `/logs`, `/logs/:name` | Delegates to `handleHttpLog()` in `log.js` for Winston log file access |
+| Everything else | Serves files from `src/public/` with MIME type detection |
+
+The router guards against path traversal by resolving the file path and confirming it starts with the `publicDir` prefix before reading from disk. It also sanitises null bytes and invalid URL encodings before any file I/O.
+
+---
+
+### `src/client.js` — Player and Admin classes
+
+`client.js` defines two classes that represent live connections:
+
+**`Player`**
+- Holds a `socket` reference, a numeric `id` (auto-incremented), a `name` (initially `null`), and a `waitingRoom` flag initialised from `config.json`.
+- `setName(name)` validates length (min/max from config) and the configured regex, returning an integer result code: `0` = success, `1` = too short, `2` = too long, `3` = regex fail.
+- `canType()` returns `true` only when the player has a name set **and** is not in the waiting room.
+- `destroy()` calls `Manager.removePlayer()` and `Key.freeAssignment()` to clean up all held keys.
+
+**`Admin`**
+- Holds a `socket`, an `id`, and an `authenticated` flag.
+- `authenticate()` sets the flag to `true` and joins the `"admin"` Socket.IO room so the `AdminPageTransport` can broadcast logs.
+
+---
+
+### `src/manager.js` — Global player registry
+
+`manager.js` maintains a plain object (`players`) keyed by numeric player ID. It exposes:
+
+- `addPlayer(pid, player)` — called from `Player` constructor
+- `removePlayer(pid)` — called from `Player.destroy()`
+- `getPlayerByPid(pid)` — used by `keycodes.js` to resolve display names
+- `isPlayer(pid)` — used by `console.js` for command validation
+- `getAllPlayers()` — returns `Object.values(players)` for iteration
+- `getPlayerCount()` — returns the total connected player count
+
+---
+
+### `src/type.js` — Keyboard emulation logic
+
+`type.js` is the gatekeeper between a Socket.IO `keydown`/`keyup` event and an actual macOS keypress. It instantiates a single shared `KeyboardHelper` and exposes:
+
+- **`handleKeydown(player, key)`** — runs `canType(player, key, true)`, increments the global per-minute counter, emits `keyReserved` to the player if this is a new assignment, logs the event, and calls `keyboard.down(keycode)` (or `keyboard.press` if held keys are disabled).
+- **`handleKeyup(player, key)`** — runs `canType(player, key, false)` (skips emulation-disabled check for keyups) and calls `keyboard.up(keycode)`.
+- **`canType(player, key, down)`** — performs all precondition checks in order:
+  1. `player.canType()` — name set and not in waiting room
+  2. `Variables.allowEmulation` — global emulation toggle (keydown only)
+  3. Global keypress rate limit (`maxKeypressesPerMinute` from config)
+  4. `keyExists(key)` — key is in the `keycodes` table
+  5. `keyEnabled(key)` — key is not disabled by admin
+  6. `Key.keyAllowed(key, player.id)` — key is unassigned or already owned
+  7. `Config.player.maxReservedKeys` — per-player key cap
+
+The per-minute counter is reset on the next clock-minute boundary using a one-shot `setTimeout` that then sets up a repeating `setInterval`.
+
+---
+
+### `src/key.js` — Key assignment state
+
+`key.js` manages which player owns which key by mutating index `[3]` of each entry in the `keycodes` table (the assigned player ID):
+
+- **`keyAllowed(key, id)`** → `[allowed: boolean, isNew: boolean]`
+  - If unassigned and `Variables.allowReservation` is true: assigns and returns `[true, true]`
+  - If already assigned to this player: returns `[true, false]`
+  - If assigned to another player: returns `[false, false]`
+  - If unassigned but reservation is disabled: returns `[false, true]`
+- **`assignKey(key, id)`** / **`revokeKey(key)`** — set/clear index `[3]`
+- **`freeAssignment(id)`** — clears all keys owned by `id` (called on disconnect)
+- **`revokeAllKeys()`** — clears every assignment (console `key revoke all`)
+- **`keyCount(id)`** — counts a player's current reservations for the maxReservedKeys check
+
+---
+
+### `src/keycodes.js` — Key definitions
+
+`keycodes.js` exports the central `keycodes` object. Each entry maps a browser key name to a 4-element array:
+
+```javascript
+// "keyName": [keyCode, "humanName", enabled, assignedPlayer]
+"a":          [0,   "a",           true,  null],
+"Enter":      [36,  "return",      true,  null],
+"ArrowLeft":  [123, "left arrow",  true,  null],
+"Shift":      [56,  "shift",       false, null], // disabled by default
+```
+
+The `keyCode` values are macOS `CGEvent` virtual keycodes. Keys disabled by default include modifier keys (`Shift`, `CapsLock`, `Meta`, `Alt`, `Control`, `Escape`, `Backspace`, `Tab`) and F1–F20.
+
+`makeKeycodesTable()` formats this data as a Unicode box-drawing ASCII table suitable for both the `/keycodes` HTTP endpoint and the `keycodes` console command.
+
+<Tip>
+Visit `http://{host}:{port}/keycodes` in any browser to see the live table, including which player currently owns each key.
+</Tip>
+
+---
+
+### `src/console.js` — CLI command handler
+
+`console.js` sets up a Node.js `readline` interface on `process.stdin` and exports `handleCommand(input)` for use by both the terminal and the admin page `command` Socket.IO event.
+
+Each command is handled by a dedicated function returned from `commandCallbacks(cmd)`. The available commands and their aliases are:
+
+| Command | Alias | Description |
+|---|---|---|
+| `stop` | `exit`, `quit` | Terminate the process |
+| `enable <emulation\|reservation>` | `e` | Enable emulation or auto-reservation |
+| `disable <emulation\|reservation>` | `d` | Disable emulation or auto-reservation |
+| `press <key> <press\|down\|up>` | `type` | Emulate a keypress directly |
+| `echo` | — | Echo arguments back |
+| `uri` | `ip` | Show the server URI |
+| `waitingroom <admit\|dismiss> <id\|all>` | `wr` | Move players in/out of the waiting room |
+| `list <active\|wr\|all\|nameless>` | `ls` | List connected players and their assigned keys |
+| `key <revoke\|enable\|disable> <key\|all>` | `k` | Modify key assignments or enabled state |
+| `keycodes` | `kc` | Print the full keycodes table |
+| `logs <combined\|warn\|error>` | `l` | Show log file location and HTTP path |
+
+`handleCommand` collects log output into a local array, joins it into a single string, prints it to `console.log` (not Winston), and returns it so the admin page can display the response.
+
+---
+
+### `src/log.js` — Winston logging
+
+`log.js` creates a Winston logger with JSON + timestamp formatting and adds file transports according to `config.json`'s `logs.logFileTypes` array. Supported types are `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`, and `combined`.
+
+Log files are written to:
+- **In development:** `logs/` relative to the project root
+- **When packaged:** `{app.getPath("userData")}/logs/`
+
+The module also defines the custom `AdminPageTransport` Winston transport. When active, it listens at level `http` and emits a `log` Socket.IO event to every socket in the `"admin"` room on the admin namespace. Errors and warnings are formatted with bold red styling; all other levels are formatted with a bolded level prefix.
+
+`handleHttpLog` serves the contents of a log file as formatted plain text at `/logs` and `/logs/:name`, parsing the NDJSON lines produced by the file transports.
+
+---
+
+### `src/utils.js` — Utilities
+
+`utils.js` provides lightweight helpers used across multiple modules:
+
+- **`sendLog(client, content, format)`** — emits a `log` event on the client's own socket.
+- **`broadcastLog(client, content, format)`** — emits a `log` event to every other connected socket (not the sender).
+- **`getLocalIP()`** — iterates `os.networkInterfaces()` to find the first non-internal IPv4 address.
+- **`getURI()`** — combines `getLocalIP()` and `Variables.serverPort` into a full `http://` URL.
+- **`escapeHTML(str)`** — replaces `&`, `<`, `>`, `"`, `'` with HTML entities for safe log rendering.
+
+<Note>
+`utils.js` deliberately does not import `log.js` to avoid a circular dependency, since `log.js` itself imports `utils.js`.
+</Note>
+
+---
+
+### `src/variables.js` — Shared mutable state
+
+`variables.js` exports a single plain object that acts as a shared state store, avoiding the need to pass references through every call chain:
+
+```javascript
+{
+  mainNamespace:    null,   // Socket.IO default namespace (set in server.js)
+  adminNamespace:   null,   // Socket.IO /admin namespace (set in server.js)
+  serverPort:       null,   // bound port (set after startServer() resolves)
+  electronPackaged: null,   // app.isPackaged (set in main.js before other imports)
+  userDataPath:     null,   // app.getPath("userData") (set in main.js)
+  allowEmulation:   <config>,   // global emulation toggle
+  allowReservation: <config>    // global auto-reservation toggle
+}
+```
+
+Because Node.js modules are singletons, mutating this object in one module is visible everywhere that has required it.
+
+---
+
+### `src/emulate/keyboard.js` — KeyboardHelper class
+
+`keyboard.js` manages the lifecycle of the native helper subprocess and provides the high-level API used by `type.js`:
+
+```javascript
+const keyboard = new KeyboardHelper();
+keyboard.down(keycode);   // sends EVENT_KEY_DOWN packet
+keyboard.up(keycode);     // sends EVENT_KEY_UP packet
+keyboard.press(keycode);  // sends EVENT_KEY_PRESS packet
+keyboard.stop();          // drains stdin and kills the process
+```
+
+The helper binary path is resolved at construction time:
+- **Development:** `path.join(__dirname, "helper")` — i.e. `src/emulate/helper`
+- **Packaged:** `path.join(process.resourcesPath, "helper")` — bundled by electron-builder
+
+The subprocess is spawned with `stdio: ["pipe", "ignore", "pipe"]` — stdin is piped for commands, stdout is ignored, and stderr is piped for error messages from the C process.
+
+---
+
+### `src/emulate/helper.c` — Native C keyboard helper
+
+`helper.c` is a small, persistent C program that reads key events from stdin and posts them to the macOS event system using the Core Graphics framework. It runs in a tight loop until stdin is closed.
+
+## Binary IPC Protocol
+
+`keyboard.js` and `helper.c` communicate via a compact 3-byte binary protocol. Each packet encodes one keyboard event:
+
+```
+Byte offset:  0        1        2
+              [keycode_lo] [keycode_hi] [event_type]
+              └──── uint16 LE ────┘     └─ uint8 ──┘
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `keycode` | `uint16_t` little-endian | macOS CGEvent virtual keycode |
+| `event_type` | `uint8_t` | `1` = KEY_DOWN, `2` = KEY_UP, `3` = KEY_PRESS |
+
+In JavaScript (`keyboard.js`):
+
+```javascript
+const packet = Buffer.alloc(3);
+packet.writeUInt16LE(keycode, 0);   // bytes 0–1
+packet.writeUInt8(eventType, 2);    // byte 2
+this.helper.stdin.write(packet);
+```
+
+In C (`helper.c`), the struct is declared with `__attribute__((packed))` to guarantee no alignment padding:
+
+```c
+typedef struct __attribute__((packed)) {
+    uint16_t keycode;
+    uint8_t  event_type;
+} KeyEvent;
+```
+
+For `EVENT_KEY_PRESS`, the helper calls `post_key(keycode, true)` followed immediately by `post_key(keycode, false)` — a full press within the same iteration. If `CGEventCreateKeyboardEvent` returns `NULL`, the helper writes `EVENT_CREATE_FAILED` to stderr, which `keyboard.js` catches and forwards to Winston as an error log.
+
+## Key Data Flow
+
+The complete path from a player's browser keypress to a real macOS keypress:
+
+```
+Browser keydown event
+  → socket.emit("keydown", key)                   [client browser]
+  → io.on("connection") → socket.on("keydown")    [server.js]
+  → Type.handleKeydown(player, key)               [type.js]
+  → canType(player, key, true)                    [type.js]
+      → player.canType()                          [client.js]
+      → Variables.allowEmulation check            [variables.js]
+      → rate limit check                          [type.js]
+      → keyExists(key), keyEnabled(key)           [type.js / keycodes.js]
+      → Key.keyAllowed(key, player.id)            [key.js]
+  → keyboard.down(keycodes[key][0])               [type.js]
+  → KeyboardHelper.sendEvent(keycode, EVENT_KEY_DOWN)  [keyboard.js]
+  → helper.stdin.write(3-byte packet)             [keyboard.js]
+  → read() loop in main()                         [helper.c]
+  → CGEventCreateKeyboardEvent(NULL, keycode, true)
+  → CGEventPost(kCGHIDEventTap, event)            [helper.c]
+```
+
+## Socket.IO Namespaces
+
+| Namespace | Used by | Auth required |
+|---|---|---|
+| `/` (default) | Players | None — name must be set before keypresses are processed |
+| `/admin` | Admin clients | Password from `config.json` (bypassed if `adminPage.password` is `""` or `autoAuthHost` matches) |
+
+<Tip>
+Admin clients that successfully authenticate are added to a Socket.IO room named `"admin"` (within the `/admin` namespace). The `AdminPageTransport` in `log.js` targets this room specifically with `adminNamespace.in("admin").emit(...)`, so unauthenticated admin connections do not receive log stream events.
+</Tip>

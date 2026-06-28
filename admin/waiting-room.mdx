@@ -1,0 +1,127 @@
+---
+title: "Managing the CollaboKeys Waiting Room"
+sidebarTitle: "Waiting Room"
+description: "The CollaboKeys waiting room lets you gate player access — new players wait until an admin admits them before they can press keys or join the game."
+---
+
+The waiting room is an optional gate that prevents players from pressing keys until an admin explicitly lets them through. When a player is in the waiting room their `waitingRoom` flag is set, and `canType()` returns `false` — meaning any keydown events they send are silently ignored by the server. This makes the waiting room ideal for controlled game starts, tournament-style sessions, or any situation where you want to decide exactly when each participant becomes active.
+
+## Enabling the Waiting Room
+
+By default, players join the game immediately upon connecting and entering a username. To route all new players through the waiting room instead, set the following option in `src/config.json`:
+
+```json
+{
+  "player": {
+    "waitRoomWhenJoined": true
+  }
+}
+```
+
+| Config key | Default | Effect |
+|---|---|---|
+| `player.waitRoomWhenJoined` | `false` | When `true`, every player who connects starts in the waiting room |
+
+<Note>
+  Changing `waitRoomWhenJoined` only affects players who connect **after** the server starts. Players already in-game when you edit the config are not retroactively moved to the waiting room.
+</Note>
+
+## Admitting Players
+
+Admitting a player moves them out of the waiting room. They receive the message **"You have been admitted from the waiting room."** on their client and can immediately begin pressing keys.
+
+### From the Admin Panel
+
+<Steps>
+  <Step title="Open the admin panel">
+    Navigate to `http://<host-ip>:<port>/admin` and authenticate.
+  </Step>
+  <Step title="Find the Waiting Room control">
+    In the Controls section, locate the waiting room row with the admit/dismiss dropdown.
+  </Step>
+  <Step title="Select Admit and choose a target">
+    Set the first dropdown to **admit**. Then choose **all players** or **specific player** and enter a player ID if targeting one person.
+  </Step>
+  <Step title="Click Run">
+    The command is sent and the response appears in the Responses panel.
+  </Step>
+</Steps>
+
+### From the Console
+
+```bash
+# Admit a specific player by their ID
+waitingroom admit 3
+
+# Admit every player in the waiting room at once
+waitingroom admit all
+
+# Using aliases
+wr a 3
+wr a all
+```
+
+<Tip>
+  Run `list wr` first to see all players currently in the waiting room along with their IDs, names, and IP addresses before deciding who to admit.
+</Tip>
+
+## Dismissing Players
+
+Dismissing a player sends them back to the waiting room. They receive the message **"You have been dismissed to the waiting room."** and their key input is blocked again until re-admitted. Their key assignments are **not** automatically revoked — they retain their reserved keys but cannot use them while waiting.
+
+### From the Admin Panel
+
+Follow the same steps as admitting, but set the first dropdown to **dismiss** instead of **admit**.
+
+### From the Console
+
+```bash
+# Dismiss a specific player back to the waiting room
+waitingroom dismiss 5
+
+# Dismiss all players at once
+waitingroom dismiss all
+
+# Using aliases
+wr d 5
+wr d all
+```
+
+<Note>
+  Dismissing a player does not disconnect them or clear their reserved keys. If you also want to clear their keys, use `key revoke all` or revoke the specific keys they hold after dismissing them.
+</Note>
+
+## Listing Waiting Room Players
+
+To see only the players currently sitting in the waiting room:
+
+```bash
+list wr
+```
+
+Each player entry shows:
+- Their display name (or `player #<id>` if they haven't set one)
+- Their internal player ID
+- Their IP address
+- Their currently assigned keys
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card icon="trophy" title="Tournament Brackets">
+    Keep all players in the waiting room and admit only the participants for each round. Dismiss them when the round ends to reset control for the next match.
+  </Card>
+  <Card icon="shield-check" title="Moderated Sessions">
+    Review each player who joins before allowing them to interact with the game — useful in public or semi-public sessions where you want to screen participants.
+  </Card>
+  <Card icon="flag-checkered" title="Synchronized Game Starts">
+    Admit all players simultaneously with `waitingroom admit all` right when the game begins, ensuring no one gets a head start before the session officially opens.
+  </Card>
+  <Card icon="people-group" title="Managing Chaos">
+    In busy lobbies, admit players in small waves rather than all at once to prevent a flood of simultaneous key claims and maintain an orderly distribution of keys.
+  </Card>
+</CardGroup>
+
+<Tip>
+  Combine the waiting room with `player.maxReservedKeys` to keep sessions structured: admit players in batches and cap how many keys each person can hold to prevent any single player from hoarding controls.
+</Tip>

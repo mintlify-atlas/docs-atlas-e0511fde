@@ -1,0 +1,101 @@
+{
+  "projectType": "saas",
+  "projectName": "CollaboKeys",
+  "projectDescription": "A macOS Electron app that lets multiple players collaboratively share a keyboard to control any keyboard-driven game in real time over a local network.",
+  "theme": "palm",
+  "primaryColor": "#6366F1",
+  "lightColor": "#818CF8",
+  "darkColor": "#4338CA",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Gameplay",
+            "pages": [
+              "gameplay/how-it-works",
+              "gameplay/joining-a-session",
+              "gameplay/supported-keys",
+              "gameplay/compatible-games"
+            ]
+          },
+          {
+            "group": "Administration",
+            "pages": [
+              "admin/admin-page",
+              "admin/console-commands",
+              "admin/waiting-room",
+              "admin/key-management"
+            ]
+          },
+          {
+            "group": "Configuration & Logging",
+            "pages": [
+              "config/configuration-file",
+              "config/logging"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/architecture",
+              "development/building",
+              "development/contributing",
+              "development/security"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time collaborative keyboard sharing over local network via Socket.IO",
+    "First-come, first-served key reservation — each player owns a unique subset of keys",
+    "macOS keyboard emulation via a native C helper using CoreGraphics CGEventPost",
+    "Browser-based player client — no install needed for players",
+    "Admin page accessible from any device on the network for full server control",
+    "CLI console commands for server management (stop, enable/disable emulation, waiting room, key revoke)",
+    "Configurable waiting room, key limits, rate limiting, and player name validation",
+    "Winston-based structured logging with file output and live admin page log stream",
+    "Electron desktop app with splash screen, display sleep prevention, and Accessibility permission flow",
+    "Key emulation supports letters, numbers, symbols, arrow keys, modifier keys, and F1–F20"
+  ],
+  "publicApiSurface": [
+    "Socket.IO event: setName(username) — set player name to begin playing",
+    "Socket.IO event: keydown(key) — send a key-down event to the host",
+    "Socket.IO event: keyup(key) — send a key-up event to the host",
+    "Socket.IO event (server→client): nameset — name accepted, gameplay unlocked",
+    "Socket.IO event (server→client): keyReserved(keyName) — player has been assigned a new key",
+    "Socket.IO event (server→client): log(content, format) — log message delivered to player UI",
+    "Socket.IO event (server→client): id(playerId) — unique player ID assigned on connect",
+    "Admin namespace (/admin) Socket.IO event: authenticate(password) — authenticate admin session",
+    "Admin namespace (/admin) Socket.IO event: command(text) — run a console command remotely",
+    "Admin namespace (server→client): authenticated — admin session confirmed",
+    "Admin namespace (server→client): response(command, output) — command result returned to admin",
+    "HTTP GET /admin — Admin control panel page",
+    "HTTP GET /keycodes — Plain-text table of all supported keys and their current state",
+    "HTTP GET /logs — Combined server log output",
+    "HTTP GET /logs/error — Error-only log output",
+    "HTTP GET /logs/warn — Warning-only log output",
+    "Console command: stop — terminate the server process",
+    "Console command: enable <emulation|reservation> — enable emulation or auto-reservation",
+    "Console command: disable <emulation|reservation> — disable emulation or auto-reservation",
+    "Console command: press <key> [press|down|up] — manually emulate a keypress",
+    "Console command: uri — print the server URL",
+    "Console command: list <all|active|wr|nameless> — list connected players",
+    "Console command: waitingroom <admit|dismiss> <id|all> — manage waiting room",
+    "Console command: key <revoke|enable|disable> <key|all> — manage key assignments",
+    "Console command: keycodes — print current keycode table",
+    "Console command: logs [combined|error|warn] — show log file location/URL",
+    "src/config.json — full configuration file for server, admin, logging, and player settings"
+  ]
+}

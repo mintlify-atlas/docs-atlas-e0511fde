@@ -1,0 +1,96 @@
+---
+title: "How CollaboKeys Works: Key Reservation and Real-Time Input"
+sidebarTitle: "How It Works"
+description: "CollaboKeys uses a first-come, first-served key reservation model and Socket.IO to forward keypresses from players' browsers to the host Mac in real time."
+---
+
+CollaboKeys turns any keyboard-driven game into a collaborative multiplayer experience. The host runs an Electron app on their Mac that spins up a local web server. Players on the same network open the server's URL in any browser and start pressing keys. Each keypress travels over a WebSocket connection back to the host, where a native C helper emulates the keypress at the macOS level — as if the host had typed the key themselves.
+
+## Architecture Overview
+
+```text
+Player's Browser          Host Mac (Electron)
+─────────────────         ──────────────────────────────────
+keydown event        →    Socket.IO receives 'keydown'
+socket.emit(key)     →    handleKeydown() runs checks
+                          keyboard.down(keyCode)
+                     →    KeyboardHelper (C) → CGEventPost
+                          ↓
+                     Game receives the keypress
+```
+
+The Electron app serves two things over HTTP on the same port (default `3000`):
+
+- **The player page** — a static web app at `/` that players open in their browser
+- **The Socket.IO endpoint** — a WebSocket channel used to stream keypresses from every player to the server in real time
+
+When a keydown event fires in the player's browser, `script.js` calls `socket.emit('keydown', originalKey(e.key))`. The `originalKey()` function (from `alias.js`) normalises shifted variants — for example, `"A"` becomes `"a"` and `"!"` becomes `"1"` — before the key name is sent to the server.
+
+## Key Reservation Model
+
+CollaboKeys uses a first-come, first-served reservation system so that each key belongs to exactly one player at a time.
+
+<Steps>
+  <Step title="Player presses an unreserved key">
+    The server's `canType()` check calls `Key.keyAllowed(key, player.id)`. If the key has no owner and `allowReservation` is enabled, `assignKey()` immediately writes the player's ID into `keycodes[key][3]`, reserving it. The function returns `[true, true]` — allowed, and it was a new reservation.
+  </Step>
+  <Step title="Server notifies the player">
+    Because `keyNew` is `true`, the server emits a `keyReserved` event back to that player's socket. The browser appends the key's human-readable name (e.g. `"left arrow"`) to the **Keys** panel on the right side of the UI.
+  </Step>
+  <Step title="Only the assigned player can use that key">
+    On every subsequent keypress, `keyAllowed()` checks whether `keycodes[key][3]` matches the pressing player's ID. If it does, the press is allowed (`[true, false]`). If another player tries the same key, it returns `[false, false]` and the server sends them a `"<keyname> is already reserved."` message in their Logs panel.
+  </Step>
+  <Step title="Key is freed on disconnect or admin revoke">
+    When a player disconnects, `Player.destroy()` calls `freeAssignment(id)`, which iterates over every key in `keycodes` and calls `revokeKey()` on any key assigned to that player — setting `keycodes[key][3]` back to `null`. An admin can also run `key revoke <keyname>` (or `key revoke all`) to free keys manually at any time. Players can also refresh their browser tab to release all their keys.
+  </Step>
+</Steps>
+
+<Note>
+  Automatic key reservation can be toggled independently from key emulation. If an admin disables reservation (`disable reservation`), players can only press keys that have already been explicitly assigned to them — pressing a free key will return `"Auto-reservation is disabled by admin."` in the Logs panel.
+</Note>
+
+## The Flow of a Keypress
+
+Here is the complete path from a physical keypress in the player's browser to an emulated event on the host:
+
+1. **Browser keydown** — the player presses a key; the browser fires a `keydown` event. `script.js` checks `allowKeyPresses` (set to `true` after the name is submitted) and that `e.repeat` is `false` so held keys don't spam the server.
+2. **`originalKey()` normalisation** — `alias.js` maps any shifted variant back to its base key (e.g. `"Z"` → `"z"`, `"!"` → `"1"`).
+3. **`socket.emit('keydown', key)`** — the normalised key name is sent to the server over the Socket.IO WebSocket.
+4. **`handleKeydown(player, key)`** — the server entry point in `type.js`. It immediately calls `canType()`.
+5. **`canType()` checks** (all must pass):
+   - Player has a name set and is not in the waiting room (`player.canType()`)
+   - Global emulation is enabled (`Variables.allowEmulation`)
+   - The global rate limit has not been reached (`keypressesThisMinute < maxKeypressesPerMinute`)
+   - The key exists in `keycodes.js` (`keyExists(key)`)
+   - The key is enabled (`keyEnabled(key)`)
+   - The key is allowed for this player (`Key.keyAllowed(key, player.id)`)
+   - The player has not exceeded their per-player key limit (`Config.player.maxReservedKeys`)
+6. **`keyboard.down(keyCode)`** — the macOS key code (e.g. `123` for ArrowLeft) is passed to `KeyboardHelper`, the native C bridge, which posts a `CGEventPost` key-down event to the system.
+7. **`socket.emit('keyup', key)`** — when the player releases the key, the same path runs through `handleKeyup()`, which calls `keyboard.up(keyCode)` to release the key on the host.
+
+## Key Held vs. Quick Press
+
+The `allowHeldKeys` config option (default `true`) controls how the emulation is performed.
+
+| Config value | Behaviour |
+|---|---|
+| `true` (default) | `keyboard.down()` on keydown, `keyboard.up()` on keyup — key is held for as long as the player holds it |
+| `false` | `keyboard.press()` on keydown only — a single instantaneous press is emulated regardless of hold duration |
+
+<Tip>
+  Leave `allowHeldKeys` at `true` for games that require holding a direction key (e.g. racing or platformer games). Set it to `false` for turn-based or puzzle games where accidental holds could cause problems.
+</Tip>
+
+## Rate Limiting
+
+CollaboKeys enforces a **global** keypress rate limit across all players combined. The default is `150` keypresses per minute, configurable via `maxKeypressesPerMinute` in `config.json`. Setting it to `0` disables the limit entirely.
+
+The counter (`keypressesThisMinute`) resets to zero at the start of every clock minute. If the limit is reached, any further keydown attempt returns a message to the pressing player:
+
+```text
+The global keypress limit has been reached. Please wait <N> seconds.
+```
+
+<Note>
+  The rate limit is global, not per-player. If one player sends rapid keypresses, it can block other players too. Admins can adjust `maxKeypressesPerMinute` in `config.json` to suit the number of players.
+</Note>

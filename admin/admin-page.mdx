@@ -1,0 +1,132 @@
+---
+title: "CollaboKeys Admin Panel: Server Controls from Any Browser"
+sidebarTitle: "Admin Panel"
+description: "The CollaboKeys admin panel at /admin lets you manage emulation, players, keys, and view live logs from any browser on the local network."
+---
+
+The CollaboKeys admin panel is a browser-based control interface that gives you full access to server management tools from any device on the local network — not just the host machine. From it you can issue console commands, manage players in the waiting room, control key assignments, toggle emulation, and watch live server logs in real time.
+
+## Accessing the Admin Panel
+
+Navigate to the `/admin` path on the same host and port as the player page:
+
+```
+http://<host-ip>:<port>/admin
+```
+
+For example, if players connect at `http://192.168.1.42:3000`, the admin panel is at `http://192.168.1.42:3000/admin`.
+
+<Tip>
+  You can find the exact server URL — including IP and port — by clicking the **show link** button inside the admin panel itself, or by running the `uri` command in the terminal.
+</Tip>
+
+## Authentication
+
+Access to the admin panel is gated by an optional password configured in `src/config.json`.
+
+| Config key | Default | Behavior |
+|---|---|---|
+| `adminPage.password` | `""` (empty) | No password required; all visitors are auto-authenticated |
+| `adminPage.autoAuthHost` | `true` | Automatically authenticates any connection from the host device itself (`127.0.0.1` / `::1`) |
+
+When a password is set, a prompt appears before any controls are revealed. Entering the correct password emits an `authenticate` event to the `/admin` Socket.IO namespace; the server responds with an `authenticated` event and adds the session to the `admin` room.
+
+<Warning>
+  By default, `adminPage.password` is an empty string, which means **anyone on the local network can open the admin panel and take full control of the server**. It is strongly recommended to set a strong password in `src/config.json` before sharing the server URL with players.
+</Warning>
+
+<Note>
+  The `adminPage.autoAuthHost` option is `true` by default, so opening `/admin` on the host machine skips the password prompt regardless of what password is configured.
+</Note>
+
+## Controls
+
+Once authenticated, the **Controls** section exposes every management action available through the terminal console.
+
+### Custom Command Box
+
+A free-form text field that accepts any [console command](/admin/console-commands) and sends it to the server on submit (or when you press **Enter**). The response appears in the **Responses** panel below.
+
+### Stop Program
+
+The **stop program** button terminates the CollaboKeys server process immediately. A "Terminating the process..." message appears in the Responses panel before the connection closes.
+
+<Warning>
+  Clicking **stop program** immediately ends the session for all connected players. Use it only when you intend to shut down the server.
+</Warning>
+
+### Enable / Disable Emulation or Auto-Reservation
+
+Two dropdowns let you switch between **enable** and **disable**, and between **emulation** and **auto-reservation**, then click **run** to apply. This maps directly to the `enable` / `disable` console commands.
+
+### Press a Key Manually
+
+Enter a key name in the text field and click **press** to emulate a keypress on the host. Equivalent to running `press <key>` in the console. Supports the same key names listed on the `/keycodes` page.
+
+### Show Link
+
+Clicking **show link** runs the `uri` command and displays the full server URL (IP address + port) in the Responses panel — handy for sharing with players.
+
+### Waiting Room
+
+<CardGroup cols={2}>
+  <Card icon="door-open" title="Admit Players">
+    Select **admit** and choose a specific player ID or **all players**, then click **run** to let players through to the game.
+  </Card>
+  <Card icon="door-closed" title="Dismiss Players">
+    Select **dismiss** to send one or all players back to the waiting room, blocking their key input until re-admitted.
+  </Card>
+</CardGroup>
+
+See [Managing the Waiting Room](/admin/waiting-room) for full details.
+
+### List Players
+
+The **list** button with its dropdown lets you query connected players filtered by:
+
+| Option | Shows |
+|---|---|
+| All players | Every connected client |
+| Active players | Players with a name set and not in the waiting room |
+| Players in waiting room | Only players currently waiting |
+| Nameless players | Players who haven't entered a username yet |
+
+Results appear in the Responses panel with each player's name, ID, IP address, and assigned keys.
+
+### Key Management
+
+A three-part control lets you select an action (**revoke**, **enable**, or **disable**), target (**all keys** or a **specific key** by name), and click **run**. See [Key Management](/admin/key-management) for a full explanation of what each action does.
+
+### List Keycodes
+
+Clicking **list keycodes** opens the `/keycodes` page in a new browser tab, showing a live table of every supported key, its keycode, human-readable name, and current enabled status.
+
+### Show Logs
+
+Select a log type — **all logs** (combined), **error logs only**, or **warning logs only** — and click **show** to open the corresponding log page in a new tab.
+
+### Clear Responses / Clear Logs
+
+- **clear responses** — empties the Responses panel in the current browser session (does not affect server-side logs)
+- **clear logs** — empties the Logs panel in the current browser session (does not affect server-side logs)
+
+## Responses Panel
+
+Every command run from the admin panel echoes back a response. Responses are prepended to the list (newest at the top) and show both the command that was sent and the server's reply. Responses persist for the duration of the browser session.
+
+## Logs Panel
+
+The Logs panel is a live stream of server-side log messages pushed over Socket.IO. It captures all log levels:
+
+| Level | Description |
+|---|---|
+| **error** | Major issues such as emulation failures |
+| **warn** | Minor issues such as running on an unsupported OS |
+| **info** | Player actions — keypresses, name changes, etc. |
+| **http** | Connection and disconnection events |
+
+Log entries are color-coded: messages marked `good` appear in green, `bad` in red, and bold messages are used for key-press notifications. The Logs panel can be cleared with the **clear logs** button, but this only affects the admin panel's display — log files on the host filesystem are unaffected.
+
+<Note>
+  The admin panel connects over the Socket.IO namespace `/admin`. The `authenticated` event from the server confirms a successful login and joins the client to the `admin` room, after which log streaming and command execution become available.
+</Note>

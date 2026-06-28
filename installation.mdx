@@ -1,0 +1,125 @@
+---
+title: "Install CollaboKeys on macOS"
+sidebarTitle: "Installation"
+description: "Download the CollaboKeys DMG for macOS or build from source with Node.js. Includes Gatekeeper quarantine fix and macOS Accessibility permission setup."
+---
+
+Only the **host** — the Mac that will run the game — needs to install CollaboKeys. Players join through any web browser on their own device and need no installation whatsoever. Choose the method below that suits you best.
+
+## Method 1: Download a Release (Recommended)
+
+<Steps>
+  <Step title="Go to GitHub Releases">
+    Open [github.com/tinkerer9/CollaboKeys/releases/latest](https://github.com/tinkerer9/CollaboKeys/releases/latest) in your browser.
+  </Step>
+  <Step title="Download the DMG">
+    Download the `.dmg` disk image file listed under the latest release assets.
+  </Step>
+  <Step title="Open the disk image">
+    Double-click the downloaded `.dmg` file to mount it. A Finder window will open showing the CollaboKeys app.
+  </Step>
+  <Step title="Drag to Applications">
+    Drag the **CollaboKeys** icon into your **Applications** folder as shown in the installer window.
+  </Step>
+  <Step title="Eject the disk image">
+    Eject the mounted disk image from the Finder sidebar. CollaboKeys is now installed.
+  </Step>
+</Steps>
+
+<Warning>
+  **Gatekeeper may block CollaboKeys from opening.** Because CollaboKeys is not signed and notarized through Apple's Developer Program, macOS Gatekeeper may refuse to launch it and display:
+
+  ```
+  "CollaboKeys" is damaged and can't be opened.
+  ```
+
+  If you see this message, open **Terminal** and run the following command to remove the quarantine attribute:
+
+  ```shell
+  xattr -dr com.apple.quarantine /Applications/CollaboKeys.app
+  ```
+
+  This command tells macOS to stop treating the app as a file downloaded from the internet. It does not modify the app itself. After running it, CollaboKeys should launch normally.
+</Warning>
+
+## Method 2: Build From Source (Advanced)
+
+Building from source requires [Node.js](https://nodejs.org/en/download) to be installed on your Mac.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```shell
+    git clone https://github.com/tinkerer9/CollaboKeys.git
+    cd CollaboKeys
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    ```shell
+    npm install
+    ```
+    This installs Socket.IO, Winston, Electron, and electron-builder from `package.json`.
+  </Step>
+  <Step title="Start CollaboKeys">
+    ```shell
+    npm start
+    ```
+    This launches CollaboKeys as a full Electron app, identical to the downloaded release.
+  </Step>
+</Steps>
+
+<Tip>
+  **Other ways to run from source:**
+
+  ```shell
+  npm run build   # compile helper + package as a distributable app saved to dist/
+  npm test        # run the server directly in the terminal without Electron
+  ```
+
+  Use `npm test` for quick server testing or headless environments where you want terminal-only interaction.
+</Tip>
+
+### Compile Step
+
+The `npm run build` command (and `npm run compile` on its own) compiles the native C key-emulation helper using `clang`:
+
+```shell
+clang src/emulate/helper.c -framework ApplicationServices -arch arm64 -arch x86_64 -O3 -o src/emulate/helper
+```
+
+This produces a universal binary (`helper`) that runs on both Apple Silicon (arm64) and Intel (x86\_64) Macs. The compiled binary is bundled into the app at `src/emulate/helper` and used at runtime to deliver native keypresses via macOS's ApplicationServices framework.
+
+<Note>
+  When you download a release DMG, the pre-compiled `helper` binary is already included. You only need to run `npm run compile` manually if you are building from source.
+</Note>
+
+## macOS Accessibility Permission
+
+CollaboKeys must be granted **Accessibility** permission before it can emulate keypresses on your Mac. Without it, player inputs will be received by the server but will never reach the game.
+
+When you launch CollaboKeys for the first time, a system dialog will appear asking you to allow the app to control your computer. Click **Open System Preferences** (or **Open System Settings** on macOS Ventura and later) and enable the toggle next to CollaboKeys.
+
+You can also grant this permission manually:
+
+<Steps>
+  <Step title="Open System Settings">
+    Go to **Apple menu → System Settings** (or **System Preferences** on older macOS versions).
+  </Step>
+  <Step title="Navigate to Accessibility">
+    Select **Privacy & Security** in the sidebar, then click **Accessibility**.
+  </Step>
+  <Step title="Enable CollaboKeys">
+    Click the **+** button, locate **CollaboKeys** in your Applications folder, and add it. Make sure the toggle next to it is turned **on**.
+  </Step>
+</Steps>
+
+<Warning>
+  If Accessibility permission is not granted, CollaboKeys will still run and players can still connect and press keys — but those keypresses will **not** be forwarded to the game on the host Mac. Key emulation will silently fail.
+</Warning>
+
+## Default Port
+
+<Note>
+  By default, CollaboKeys attempts to start its web server on port **3000**. If that port is in use, it falls back to **8080**, then **8000**, and continues through a list of preferred ports (`[3000, 8080, 8000, 5000, 2000, 4000, 6000, 7000, 9000]`) before picking a random available port.
+
+  You can change the port preference list by editing the `"server.ports"` array in `src/config.json`. See the configuration file documentation for all available options.
+</Note>

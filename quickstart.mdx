@@ -1,47 +1,104 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get a CollaboKeys Session Running in Minutes"
+sidebarTitle: "Quickstart"
+description: "Start a CollaboKeys session, share it with players on your local network, and play any keyboard game together in under 5 minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
+This quickstart walks you through launching CollaboKeys on your Mac, inviting players on your local network, and playing your first collaborative keyboard game together — all in under five minutes.
 
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+<Note>
+  **Prerequisites:**
+  - CollaboKeys is installed on the **host Mac** (see [Installation](/installation))
+  - macOS **Accessibility** permission has been granted to CollaboKeys
+  - All players have a **modern web browser** (no installation needed)
+  - The host and all players are connected to the **same local Wi-Fi network**
+</Note>
 
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+## Steps
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+  <Step title="Open CollaboKeys">
+    Launch **CollaboKeys** from your Applications folder (or run `npm start` if you built from source).
 
-    ```bash
-    npm install your-package
-    ```
+    The app displays a brief splash screen while it starts, then automatically opens the **admin panel** in the app window. The server is now running and ready to accept player connections.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
+  <Step title="Find the server URL">
+    In the admin panel, click the **Show Link** button (this runs the `uri` command internally). CollaboKeys will display the full URL players should visit — something like:
+
     ```
+    http://192.168.1.42:3000
+    ```
+
+    This URL is your Mac's local network IP address plus the port CollaboKeys is running on.
+
+    <Note>
+      Players must be on the **same local network** as your Mac. The URL shown will not work over the internet or across different Wi-Fi networks.
+    </Note>
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
 
-    ```bash
-    your-cli start
-    ```
+  <Step title="Share the URL with players">
+    Send the server URL to everyone who wants to play. You can share it via a group chat, show it on screen, or read it aloud. Players do not need to install anything.
+  </Step>
+
+  <Step title="Each player joins in their browser">
+    Players open the URL in any web browser. They will be prompted to enter a **username**:
+
+    - Minimum **3 characters**, maximum **20 characters**
+    - Only **alphanumeric characters** (a–z, A–Z, 0–9)
+
+    After entering a valid username they click **Continue** and are placed directly into the session.
+  </Step>
+
+  <Step title="Open any keyboard-controlled game on the host Mac">
+    On the host Mac, open the game you want to play — in a browser, as a desktop app, or anywhere else. Make sure the game window is **in focus** so that CollaboKeys's emulated keypresses are delivered to it.
+  </Step>
+
+  <Step title="Players claim their keys">
+    Players can now start pressing keys in their browser. The rules are simple:
+
+    - The **first time** a player presses a key, that key is **reserved for them exclusively**.
+    - No other player can use that key from that point on.
+    - Each player's reserved keys are shown on the **right side of their screen**.
+    - Pressing a key that is already reserved by someone else has **no effect**.
+
+    Keypresses are transmitted in real time via Socket.IO and emulated natively on the host Mac using the ApplicationServices framework.
+  </Step>
+
+  <Step title="Collaborate to control the game">
+    All players are now controlling the game together — each responsible for only the keys they've claimed. Coordinate, communicate, and cooperate (or descend into beautiful chaos) to play the game as a team.
+
+    <Tip>
+      A player can release all of their claimed keys at any time by **refreshing the page** in their browser. They'll be taken back to the username screen and can rejoin fresh.
+    </Tip>
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## Try It: Play 2048 Together
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+<Tip>
+  **[2048](https://2048-online.io)** is a perfect beginner game for CollaboKeys. It uses only the four arrow keys, so each player can take exactly one direction. Try it with four players — one controls ←, one controls →, one controls ↑, and one controls ↓. Can you reach the 2048 tile while disagreeing about every move? For an extra challenge, don't communicate with your teammates at all!
 </Tip>
+
+## Stopping a Session
+
+There are several ways to stop a CollaboKeys session:
+
+- **Quit the app** — two-finger-click the CollaboKeys icon in the Dock and select **Quit**. This shuts down the server and disconnects all players.
+- **Admin panel stop button** — in the admin panel, click the **stop program** button in the Controls section. This works from any device that has the admin page open, not just the host.
+- **Console command** — if you are running CollaboKeys from the terminal (`npm start` or `npm test`), type `stop` and press Enter.
+- **Force Quit** — if the app is unresponsive, press `Command` + `Option` + `Escape`, select CollaboKeys, and click **Force Quit**.
+
+## What's Next
+
+<CardGroup cols={3}>
+  <Card title="Gameplay & How It Works" icon="gamepad" href="/gameplay/how-it-works">
+    Learn about key reservation, supported keys, and what makes a game compatible with CollaboKeys.
+  </Card>
+  <Card title="Admin Panel" icon="sliders" href="/admin/admin-page">
+    Explore all the controls available in the admin panel, including player management and live logs.
+  </Card>
+  <Card title="Configuration File" icon="gear" href="/config/configuration-file">
+    Customize ports, player limits, key restrictions, passwords, and more via `src/config.json`.
+  </Card>
+</CardGroup>

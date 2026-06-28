@@ -1,0 +1,176 @@
+---
+title: "CollaboKeys Configuration File Reference"
+sidebarTitle: "Configuration"
+description: "Complete reference for all options in src/config.json, covering the admin page, Electron app behavior, console, logging, player rules, and server settings."
+---
+
+CollaboKeys stores all of its runtime settings in `src/config.json`. This file is read once at startup — restart the server after making any changes for them to take effect.
+
+## Default Configuration
+
+```json src/config.json
+{
+    "adminPage": {
+        "enabled": true,
+        "password": "",
+        "autoAuthHost": true
+    },
+    "app": {
+        "preventDisplaySleep": true,
+        "splashScreenTime": 1000,
+        "enableDevTools": false
+    },
+    "console": {
+        "enabled": true
+    },
+    "logs": {
+        "logPage": {
+            "enabled": true
+        },
+        "logFileTypes": [
+            "combined",
+            "error",
+            "warn"
+        ],
+        "deleteAtStart": false
+    },
+    "player": {
+        "name": {
+            "minLength": 3,
+            "maxLength": 20,
+            "regex": "[a-zA-Z0-9]"
+        },
+        "waitRoomWhenJoined": false,
+        "maxReservedKeys": 0
+    },
+    "server": {
+        "ports": [3000, 8080, 8000, 5000, 2000, 4000, 6000, 7000, 9000]
+    },
+    "allowHeldKeys": true,
+    "allowEmulationAtStart": true,
+    "allowReservationAtStart": true,
+    "maxKeypressesPerMinute": 150
+}
+```
+
+---
+
+## Admin Page (`adminPage.*`)
+
+These options control access to the `/admin` panel.
+
+<Warning>
+  By default, `adminPage.password` is an empty string, meaning **anyone on your local network can access the admin panel** and control the server. Set a strong password before sharing your server URL with other players.
+</Warning>
+
+<ParamField path="adminPage.enabled" type="boolean" default="true">
+  Enables or disables the `/admin` page entirely. When set to `false`, all incoming admin connections are rejected — useful if you prefer to manage the server exclusively via the CLI console.
+</ParamField>
+
+<ParamField path="adminPage.password" type="string" default='""'>
+  Password required to authenticate with the admin panel. An empty string (`""`) means no password is required and anyone who visits `/admin` is granted access immediately.
+</ParamField>
+
+<ParamField path="adminPage.autoAuthHost" type="boolean" default="true">
+  When `true`, connections originating from `127.0.0.1` or `::1` (the host machine itself) are automatically authenticated without needing to enter a password. Disable this if you want the host to go through the same authentication flow as remote users.
+</ParamField>
+
+---
+
+## App (`app.*`) — Electron Only
+
+These settings only apply when CollaboKeys is running as a packaged `.app`. They have no effect when running via `npm test` in the terminal.
+
+<ParamField path="app.preventDisplaySleep" type="boolean" default="true">
+  Prevents macOS from dimming or sleeping the display while CollaboKeys is open. This is useful during long gaming sessions where keyboard input is the only activity keeping the screen alive.
+</ParamField>
+
+<ParamField path="app.splashScreenTime" type="number" default="1000">
+  The minimum number of milliseconds the splash screen is shown on launch. The splash screen will stay visible until both this duration has elapsed **and** the server is ready. Measured in milliseconds.
+</ParamField>
+
+<ParamField path="app.enableDevTools" type="boolean" default="false">
+  Opens Chromium DevTools inside the Electron window. Intended for development and debugging only — not recommended for normal use or when sharing your server with other players.
+</ParamField>
+
+---
+
+## Console (`console.*`)
+
+<ParamField path="console.enabled" type="boolean" default="true">
+  Enables or disables interactive CLI console command input in the terminal. When `false`, the terminal will no longer accept commands such as `stop`, `enable emulation`, or `list all`. See the [Console Commands](/admin/console-commands) section for the full list of available commands.
+</ParamField>
+
+---
+
+## Logs (`logs.*`)
+
+<ParamField path="logs.logPage.enabled" type="boolean" default="true">
+  Enables or disables the HTTP log endpoints at `/logs`, `/logs/error`, `/logs/warn`, etc. When `false`, all requests to `/logs*` return a `404` response. See the [Logging](/config/logging) page for full details.
+</ParamField>
+
+<ParamField path="logs.logFileTypes" type="array" default='["combined", "error", "warn"]'>
+  An array of log file names to write to disk. Each entry corresponds to both a filename (e.g. `"error"` → `error.log`) and a log level filter. The special value `"combined"` captures all log levels with no filter applied.
+
+  Valid values: `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`, `combined`
+
+  Any value not in this list is silently ignored.
+</ParamField>
+
+<ParamField path="logs.deleteAtStart" type="boolean" default="false">
+  When `true`, the entire `logs/` folder is deleted before new log file transports are registered. This gives you a clean slate on every launch. Use with caution — deleted logs cannot be recovered.
+</ParamField>
+
+---
+
+## Player (`player.*`)
+
+These settings govern how players join and interact with the server.
+
+<ParamField path="player.name.minLength" type="number" default="3">
+  The minimum number of characters a player's username must contain (inclusive). Usernames shorter than this value are rejected at join time.
+</ParamField>
+
+<ParamField path="player.name.maxLength" type="number" default="20">
+  The maximum number of characters a player's username may contain (inclusive). Usernames longer than this value are rejected at join time.
+</ParamField>
+
+<ParamField path="player.name.regex" type="string" default='"[a-zA-Z0-9]"'>
+  A regular expression pattern tested against the player's chosen username. Every character in the username must match this pattern. The default `[a-zA-Z0-9]` restricts names to alphanumeric characters only, blocking spaces and special characters.
+</ParamField>
+
+<ParamField path="player.waitRoomWhenJoined" type="boolean" default="false">
+  When `true`, newly connected players are placed in the **waiting room** instead of being admitted to the game immediately. An admin must use the `waitingroom admit <id>` command (or the admin panel equivalent) to let them in.
+</ParamField>
+
+<ParamField path="player.maxReservedKeys" type="number" default="0">
+  The maximum number of keys each player is allowed to reserve. Once a player reaches this limit, additional key presses will not assign new keys to them. A value of `0` means no limit — players can reserve as many keys as they claim.
+</ParamField>
+
+---
+
+## Server (`server.*`)
+
+<ParamField path="server.ports" type="array" default="[3000, 8080, 8000, 5000, 2000, 4000, 6000, 7000, 9000]">
+  An ordered list of TCP ports that CollaboKeys will try to bind to when starting. Each port in the array is attempted in sequence. If every port in the list is already in use, CollaboKeys falls back to a random available port assigned by the OS.
+</ParamField>
+
+---
+
+## Top-Level Options
+
+<ParamField path="allowHeldKeys" type="boolean" default="true">
+  Controls how key events are emulated. When `true`, CollaboKeys uses `keydown` and `keyup` events, allowing players to hold keys — essential for games that require held movement keys. When `false`, every press is emulated as a quick tap regardless of how long the player holds the key in their browser.
+</ParamField>
+
+<ParamField path="allowEmulationAtStart" type="boolean" default="true">
+  Determines whether key emulation is active when the server first starts. When `false`, the server boots with emulation disabled — no keypresses are forwarded to the host OS until an admin explicitly enables emulation via the console (`enable emulation`) or the admin panel.
+</ParamField>
+
+<ParamField path="allowReservationAtStart" type="boolean" default="true">
+  Determines whether automatic key reservation is active when the server first starts. When `false`, players can connect and press keys, but keys will not be automatically assigned to them. An admin must enable reservation via `enable reservation` or the admin panel.
+</ParamField>
+
+<ParamField path="maxKeypressesPerMinute" type="number" default="150">
+  A global rate limit on the total number of keypresses the server will process per minute across all players combined. Once the limit is reached within a rolling minute window, additional keypresses are dropped. Set to `0` to disable rate limiting entirely.
+</ParamField>

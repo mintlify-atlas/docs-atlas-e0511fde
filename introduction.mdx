@@ -1,0 +1,66 @@
+---
+title: "CollaboKeys: Collaborative Keyboard Gaming on macOS"
+sidebarTitle: "Introduction"
+description: "CollaboKeys is a free macOS app that lets multiple players share one keyboard to cooperatively control any keyboard-driven game in real time over a local network."
+---
+
+CollaboKeys is a free, open-source macOS app that turns any keyboard-driven game into a multiplayer experience. Instead of one person controlling the whole keyboard, each player claims a subset of keys and everyone works together — or chaotically against each other — to control the game. No accounts, no extra software for players, and no configuration required to get started.
+
+## How It Works
+
+CollaboKeys runs a local web server on the host's Mac. Players on the same Wi-Fi network open the server URL in any browser and are immediately connected via **Socket.IO**, which keeps all keypresses synchronized in real time with minimal latency.
+
+The key allocation system follows a strict **first-come, first-served** model:
+
+- When a player presses a key that nobody has claimed yet, that key is automatically **reserved for them exclusively**.
+- No other player can trigger that key from that point forward.
+- A player's reserved keys are displayed on the right side of their screen so they always know what they own.
+- A player can release all of their keys at any time by refreshing the page.
+
+When the host's Mac receives a keypress event from a player, **CollaboKeys emulates that keypress natively** using a compiled C helper (`src/emulate/helper.c`) that calls macOS's ApplicationServices framework. The emulated keypress is delivered to whichever application is currently in focus on the host — exactly as if the key were pressed on a physical keyboard.
+
+<Note>
+  Key emulation requires macOS Accessibility permission. CollaboKeys will prompt you to grant it the first time you launch the app. See [Installation](/installation) for details.
+</Note>
+
+## Why CollaboKeys?
+
+Traditional remote-desktop and screen-sharing tools hand full keyboard control to one remote user at a time. CollaboKeys takes a fundamentally different approach: **every player gets a piece of the keyboard, not the whole thing**.
+
+This creates a genuinely cooperative (and often gloriously chaotic) dynamic. Players must communicate, negotiate key assignments, and coordinate their inputs to achieve anything in the game. Because no single player can do everything alone, CollaboKeys turns even simple single-player games into social experiences.
+
+<Info>
+  CollaboKeys was built for a hackathon with the theme *Connection* and won 2nd place out of 14 teams.
+</Info>
+
+## Perfect For
+
+CollaboKeys shines with any game that relies entirely on keyboard input. Some genres that work especially well:
+
+- 🏎️ **Racing games** — one player steers left, another steers right, a third hits the accelerator
+- 🕹️ **Platformers** — split movement and jump keys across players for maximum coordination chaos
+- 🧩 **Puzzle games** — assign each player a direction or action key and solve together
+- 🎉 **Party games** — fast-paced titles where the mayhem is the point
+
+The only hard requirements are that the game uses only keypresses (no mouse input) and that it has at least as many control keys as there are players.
+
+## System Requirements
+
+<Note>
+  **Host (server):** macOS only. CollaboKeys is a native macOS Electron application — the key emulation layer uses Apple's ApplicationServices framework and is compiled for both arm64 (Apple Silicon) and x86\_64 (Intel) architectures.
+
+  **Players (clients):** Any device with a modern web browser. No installation required.
+
+  **Network:** All players must be on the **same local network** as the host. Playing across different networks or over the internet is not supported.
+</Note>
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Download the macOS DMG or build from source. Includes Gatekeeper fix and Accessibility permission setup.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Start a session, invite players, and play your first collaborative game in under 5 minutes.
+  </Card>
+</CardGroup>

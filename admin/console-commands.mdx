@@ -1,0 +1,314 @@
+---
+title: "CollaboKeys Console Command Reference"
+sidebarTitle: "Console Commands"
+description: "Full reference for all CollaboKeys console commands available via terminal or the admin panel's custom command box, including aliases and argument syntax."
+---
+
+CollaboKeys supports a set of commands that can be entered either directly in the terminal on the host machine or through the admin panel's **custom command box**. Both surfaces use the exact same command parser, so any command that works in the terminal works identically in the browser-based admin panel.
+
+<Note>
+  Terminal input is only active when `console.enabled` is set to `true` in `src/config.json` (default: `true`). The admin panel command box is available whenever the admin page is enabled, regardless of this setting.
+</Note>
+
+## Command Parsing
+
+Commands are split into tokens by whitespace. Quoted strings — either single quotes (`'...'`) or double quotes (`"..."`) — are treated as a single token, which is useful for key names or text that contains spaces.
+
+```
+press 'space'        # passes 'space' as one token
+echo "hello world"   # passes 'hello world' as one token
+```
+
+The first token is the command name; all subsequent tokens are passed as arguments to that command.
+
+---
+
+## Command Reference
+
+### `stop`
+
+**Aliases:** `exit`, `quit`
+
+Terminates the CollaboKeys process. All player connections are dropped immediately.
+
+```bash
+stop
+```
+
+---
+
+### `echo`
+
+Prints all provided arguments back as output, joined by spaces — similar to the Unix `echo` command. Useful for testing the command pipeline.
+
+```bash
+echo hello world
+# → hello world
+```
+
+<ParamField path="text" type="string" required>
+  One or more words to echo back. Quoted strings are treated as a single token.
+</ParamField>
+
+---
+
+### `uri`
+
+**Aliases:** `ip`
+
+Prints the full server URL — the host machine's local IP address combined with the active port. Share this URL with players so they can connect.
+
+```bash
+uri
+# → http://192.168.1.42:3000
+```
+
+---
+
+### `enable`
+
+**Aliases:** `e`
+
+Enables either key emulation or automatic key reservation.
+
+```bash
+enable <emulation|reservation>
+```
+
+<ParamField path="type" type="string" required>
+  What to enable. Accepted values:
+  - `emulation` (alias: `e`) — allows keypresses to be forwarded to the active application
+  - `reservation` (alias: `r`) — allows players to claim unassigned keys on first press
+</ParamField>
+
+**Examples:**
+
+```bash
+enable emulation
+enable e          # same as above (alias)
+enable reservation
+enable r          # same as above (alias)
+```
+
+---
+
+### `disable`
+
+**Aliases:** `d`
+
+Disables either key emulation or automatic key reservation.
+
+```bash
+disable <emulation|reservation>
+```
+
+<ParamField path="type" type="string" required>
+  What to disable. Accepted values:
+  - `emulation` (alias: `e`) — stops all keypresses from reaching the active application
+  - `reservation` (alias: `r`) — prevents players from claiming new keys (existing assignments remain)
+</ParamField>
+
+**Examples:**
+
+```bash
+disable emulation
+disable d e       # same as above using command alias + arg alias
+disable reservation
+disable r         # same as above (alias)
+```
+
+---
+
+### `press`
+
+**Aliases:** `type`
+
+Manually emulates a key event on the host system, bypassing player assignment checks. Useful for testing key support or triggering a keypress without a connected player.
+
+```bash
+press <key> [press|down|up]
+```
+
+<ParamField path="key" type="string" required>
+  The key name to emulate. Must be a valid key from the keycodes table (see `keycodes` command). Use quotes for keys with spaces, e.g. `'caps lock'`.
+</ParamField>
+
+<ParamField path="type" type="string">
+  The type of key event. Defaults to `press` if omitted.
+  - `press` — a full key press and release
+  - `down` — key held down
+  - `up` — key released
+</ParamField>
+
+**Examples:**
+
+```bash
+press a
+press space press
+press 'caps lock' down
+press return up
+```
+
+---
+
+### `list`
+
+**Aliases:** `ls`
+
+Lists all connected players or a filtered subset. For each player, the output includes their name (or player number if unnamed), internal ID, IP address, and currently assigned keys.
+
+```bash
+list <all|active|wr|nameless>
+```
+
+<ParamField path="filter" type="string">
+  Which players to show. Defaults to `all` if omitted.
+  - `all` — every connected client
+  - `active` — players with a name set who are not in the waiting room
+  - `wr` — players currently in the waiting room (also accepts `waitingroom`)
+  - `nameless` — players who haven't entered a username yet
+</ParamField>
+
+**Examples:**
+
+```bash
+list
+list all
+list active
+list wr
+ls nameless
+```
+
+---
+
+### `waitingroom`
+
+**Aliases:** `wr`
+
+Admits or dismisses a player (or all players) from the waiting room.
+
+```bash
+waitingroom <admit|dismiss> <id|all>
+```
+
+<ParamField path="action" type="string" required>
+  The action to perform:
+  - `admit` (alias: `a`) — moves the player out of the waiting room so they can press keys
+  - `dismiss` (alias: `d`) — sends the player back to the waiting room, blocking their input
+</ParamField>
+
+<ParamField path="target" type="string" required>
+  - A numeric player ID (visible from `list wr`)
+  - `all` — applies the action to every connected player
+</ParamField>
+
+**Examples:**
+
+```bash
+waitingroom admit 3
+waitingroom dismiss all
+wr a 3             # admit player #3 using aliases
+wr d all           # dismiss all players using aliases
+```
+
+---
+
+### `key`
+
+**Aliases:** `k`
+
+Modifies a key's assignment or enabled status.
+
+```bash
+key <revoke|enable|disable> <keyname|all>
+```
+
+<ParamField path="action" type="string" required>
+  The action to perform:
+  - `revoke` (alias: `r`) — clears the key's player assignment so anyone can claim it again
+  - `enable` (alias: `e`) — marks the key as available for emulation
+  - `disable` (alias: `d`) — blocks emulation for this key even if a player has it assigned
+</ParamField>
+
+<ParamField path="target" type="string" required>
+  - A valid key name (e.g. `a`, `space`, `return`, `'caps lock'`)
+  - `all` — applies the action to every key in the keycodes table
+</ParamField>
+
+**Examples:**
+
+```bash
+key revoke a
+key revoke all
+key enable space
+key enable all
+key disable 'caps lock'
+k d all            # disable all keys using aliases
+```
+
+---
+
+### `keycodes`
+
+**Aliases:** `kc`
+
+Prints a table of all keys in the keycodes list, including their keycode, human-readable name, current enabled/disabled status, and assigned player ID.
+
+```bash
+keycodes
+```
+
+<Note>
+  When run from the **admin panel**, this command does not print the table in the Responses panel. Instead, it opens the `/keycodes` page in a new browser tab, which displays the same information in a formatted layout.
+</Note>
+
+---
+
+### `logs`
+
+**Aliases:** `l`
+
+Shows the file path and URL for a log file.
+
+```bash
+logs [combined|error|warn]
+```
+
+<ParamField path="type" type="string">
+  Which log file to reference. Defaults to `combined` if omitted.
+  - `combined` — all log levels (error, warn, info, http)
+  - `error` — error-level logs only
+  - `warn` — warning-level logs only
+</ParamField>
+
+**Examples:**
+
+```bash
+logs
+logs combined
+logs error
+logs warn
+l warn
+```
+
+<Note>
+  When run from the **admin panel**, `logs` and its variants open the corresponding log page (`/logs`, `/logs/error`, `/logs/warn`) in a new browser tab rather than printing to the Responses panel.
+</Note>
+
+---
+
+## Quick Reference Table
+
+| Command | Aliases | Arguments | Description |
+|---|---|---|---|
+| `stop` | `exit`, `quit` | — | Terminate the process |
+| `echo` | — | `<text...>` | Echo input back as output |
+| `uri` | `ip` | — | Print server URL |
+| `enable` | `e` | `<emulation\|reservation>` | Enable emulation or auto-reservation |
+| `disable` | `d` | `<emulation\|reservation>` | Disable emulation or auto-reservation |
+| `press` | `type` | `<key> [press\|down\|up]` | Manually emulate a key event |
+| `list` | `ls` | `[all\|active\|wr\|nameless]` | List players |
+| `waitingroom` | `wr` | `<admit\|dismiss> <id\|all>` | Admit or dismiss players |
+| `key` | `k` | `<revoke\|enable\|disable> <keyname\|all>` | Manage key assignment or enabled status |
+| `keycodes` | `kc` | — | Show keycodes table |
+| `logs` | `l` | `[combined\|error\|warn]` | Show log file path and URL |

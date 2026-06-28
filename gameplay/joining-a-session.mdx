@@ -1,0 +1,99 @@
+---
+title: "Join a CollaboKeys Session as a Player"
+sidebarTitle: "Joining a Session"
+description: "Players join a CollaboKeys session from any browser by navigating to the host's local IP address, choosing a username, and pressing keys to claim them."
+---
+
+Joining a CollaboKeys session requires nothing more than a web browser. There is no app to install, no account to create, and no plugin to enable — just a URL. As long as you are on the same local network as the host, you can start pressing keys within seconds.
+
+## Prerequisites
+
+- **Same local network as the host** — CollaboKeys does not support connections across different networks or over the internet.
+- **A modern browser** — any current version of Chrome, Firefox, Safari, or Edge works. The player page uses Socket.IO and standard browser APIs, so no special capabilities are required.
+
+## Steps to Join
+
+<Steps>
+  <Step title="Get the server URL from the host">
+    The host can find their server address by clicking the **Show Link** button on the CollaboKeys admin page, or by running the `uri` command in the terminal. The URL looks like:
+
+    ```text
+    http://192.168.1.42:3000
+    ```
+
+    The host should share this URL with all players — via a chat message, screen share, or by reading it aloud.
+  </Step>
+  <Step title="Open the URL in your browser">
+    Paste the URL into any browser's address bar and press Enter. You will see the CollaboKeys player page, which shows the CollaboKeys logo, a brief description, and a username entry field.
+  </Step>
+  <Step title="Enter a username">
+    Type a username into the **Username** field. Your username must meet all of these requirements:
+
+    - Between **3 and 20 characters** long (inclusive)
+    - Contains only **alphanumeric characters** — letters `A–Z` (case-insensitive) and digits `0–9` — validated server-side against the `[a-zA-Z0-9]` regex
+
+    The input field automatically strips any non-alphanumeric characters as you type, so you will not be able to enter spaces or symbols.
+
+    <Note>
+      Usernames are case-insensitive on input, but will appear as entered in the Logs panel and admin page.
+    </Note>
+  </Step>
+  <Step title="Click Continue">
+    Click the **Continue** button (or press Enter). The browser sends `socket.emit('setName', name)` to the server. The server validates the name length and regex, then responds with a `nameset` event if the name is valid.
+
+    Once `nameset` is received, the username entry screen hides, the **Logs** and **Keys** panel headers appear, and keypresses are enabled in the browser.
+
+    If the name fails validation (too short, too long, or invalid characters), the server will not emit `nameset` and the username screen remains visible.
+  </Step>
+  <Step title="Start pressing keys to claim them">
+    With your username set, you can now press any key on your keyboard. The first time you press an unclaimed key, the server automatically assigns it to you — no one else can press that key for the rest of the session. Your assigned keys appear in the **Keys** panel on the right side of the page.
+
+    From this point on, only your keys will register in the game. Pressing a key that belongs to another player will show an error message in your Logs panel.
+  </Step>
+</Steps>
+
+## The Logs Panel
+
+The **Logs** panel (left side of the player page) shows a running history of events for your session. New entries appear at the top. Here is what the different message types mean:
+
+| Message style | Meaning |
+|---|---|
+| **Bold text** — e.g. **You pressed left arrow.** | Your keypress was accepted and forwarded to the game. |
+| Normal text | An informational message from the server (e.g. a broadcast from the admin). |
+| Green text (`good` class) | A success message — e.g. confirmation from the server. |
+| Red text (`bad` class) | An error — e.g. `"<key> is already reserved."`, `"Emulation is disabled by admin."`, or the rate limit was hit. |
+
+<Tip>
+  If you see repeated red messages saying a key is already reserved, try pressing a different key — one that has not been claimed by another player yet.
+</Tip>
+
+## Refreshing the Page
+
+Navigating away from or refreshing the player page disconnects your Socket.IO connection. The server calls `Player.destroy()`, which runs `freeAssignment()` to release all keys you had reserved. Those keys become available for any other player to claim.
+
+<Warning>
+  Refreshing mid-game releases all your reserved keys. If you were controlling essential keys (e.g. the left arrow in a racing game), the game may become uncontrollable until another player claims them. Always let your teammates know before refreshing.
+</Warning>
+
+## If the Connection Fails
+
+If the Socket.IO connection cannot be established — for example, if the host's server is not running, or you entered the wrong IP address — the player page will display:
+
+```text
+Failed to connect to the server.
+Please reload or contact the game host.
+```
+
+This message appears in red at the top of the Logs list. The page header and Keys panel will also dim to indicate the disconnected state. To try again, reload the page once the host confirms the server is running.
+
+## Waiting Room
+
+The host can configure CollaboKeys to place newly joined players in a **waiting room** before they can press any keys (`player.waitRoomWhenJoined` in `config.json`). If this is enabled:
+
+- You can still enter your username normally.
+- Your keypresses will not be forwarded to the game until the admin admits you.
+- The admin uses the `waitingroom admit <id>` command or admin page controls to let you in.
+
+<Note>
+  If you are stuck on the username screen and nothing happens after clicking Continue, you may be in the waiting room. Contact the host and ask them to admit you via the admin page.
+</Note>

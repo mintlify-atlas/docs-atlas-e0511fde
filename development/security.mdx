@@ -1,0 +1,119 @@
+---
+title: "Security Considerations for CollaboKeys Hosts"
+sidebarTitle: "Security"
+description: "CollaboKeys gives connected players keyboard access to the host Mac. Understand the risks, set an admin password, and know how to stop the server in an emergency."
+---
+
+CollaboKeys is designed for cooperative play among trusted participants on a shared local network. Its core mechanic — letting remote players emulate keypresses on the host Mac — is also its primary security concern. Every player who connects and claims keys gains real-time keyboard access to whatever application is in focus on the host machine, limited only to their assigned keys. Hosts should understand these risks before starting a session.
+
+<Warning>
+CollaboKeys requires the macOS Accessibility permission, which grants it system-wide keyboard emulation. Any keypress that a connected player is permitted to send will be delivered to the currently focused application on the host — not just to a game window.
+</Warning>
+
+## Key Risks
+
+### Players can type on the host Mac
+
+A player is limited to the keys they have reserved. However, since key assignment is first-come-first-served and there is no default cap on how many keys a player can claim, a single player could theoretically reserve every key on the board and type anything in any application. The host should always monitor what players are doing on screen.
+
+### The admin page has no password by default
+
+The admin page (`/admin`) is accessible to anyone on the local network. By default, `adminPage.password` in `config.json` is an empty string, which means **no password is required**. Any device on the same network can open the admin page and send console commands, including `stop` (which terminates the process), `key revoke all`, or `disable emulation`.
+
+### CollaboKeys is not code-signed or notarized
+
+CollaboKeys is not signed or notarized through Apple's Developer Program. This means:
+
+- macOS Gatekeeper will block the app on first launch with a "damaged and can't be opened" message.
+- Users must manually remove the quarantine attribute (`xattr -dr com.apple.quarantine /Applications/CollaboKeys.app`).
+- There is no Apple-verified identity attached to the binary.
+
+This has no impact on in-session security, but it means you should only run binaries obtained from the official [GitHub Releases](https://github.com/tinkerer9/CollaboKeys/releases/latest) page or built from source.
+
+## Recommended Mitigations
+
+**Set an admin page password.** Open `src/config.json` and set `adminPage.password` to a non-empty string:
+
+```json
+{
+  "adminPage.password": "your-password-here"
+}
+```
+
+Without a password, anyone on the network who discovers the server URL can access full admin controls.
+
+**Enable the waiting room.** Set `player.waitRoomWhenJoined` to `true` in `config.json` so that new players enter a waiting room and cannot type until the host admits them:
+
+```json
+{
+  "player.waitRoomWhenJoined": true
+}
+```
+
+Use the `waitingroom admit <id>` console command or the admin page to let in players you recognise.
+
+**Limit keys per player.** Set `player.maxReservedKeys` to a positive integer to cap how many keys any one player can claim:
+
+```json
+{
+  "player.maxReservedKeys": 4
+}
+```
+
+A value of `0` (the default) means no limit.
+
+**Monitor the admin panel during sessions.** Keep the admin page open on the host device or a second device. The live log stream shows every keypress by name and player, so suspicious activity is visible in real time.
+
+**Only run on trusted networks.** CollaboKeys binds to `0.0.0.0`, making the server reachable by any device on the network. Avoid running it on public, shared, or untrusted Wi-Fi.
+
+<Tip>
+If you enable `adminPage.autoAuthHost` in `config.json`, the host device (connecting from `127.0.0.1`) is automatically authenticated without a password. This is convenient when you want to protect the admin page from other network devices while still accessing it quickly from the host.
+</Tip>
+
+## Emergency Stop Procedures
+
+If a malicious or unexpected player starts typing on the host Mac, use one of the following methods to stop CollaboKeys immediately, in order of preference:
+
+<Steps>
+
+<Step title="Use the admin page">
+
+If the admin page is open on any device, navigate to the **Controls** section and click **stop program**. This sends the `stop` command to the server, which terminates the process cleanly.
+
+</Step>
+
+<Step title="Quit via the Dock">
+
+Right-click (two-finger-click) the CollaboKeys icon in the Dock and select **Quit**. The Electron app will shut down and the server will stop.
+
+</Step>
+
+<Step title="Force Quit">
+
+Press **Command + Option + Escape** to open the Force Quit menu. Select **CollaboKeys** from the list and click **Force Quit**. Use this if the normal Quit option is unresponsive.
+
+</Step>
+
+<Step title="Physical disconnect (last resort)">
+
+If the above steps are not working fast enough, you can physically close your laptop lid to sleep the machine and cut off network activity, or disconnect the network cable / disable Wi-Fi from the menu bar. This immediately stops all key events from reaching the system.
+
+</Step>
+
+</Steps>
+
+<Note>
+After an emergency stop, review `logs/combined.log` (or visit `/logs` while the server is running) to see which player IDs and IP addresses were connected and what keypresses were sent during the session.
+</Note>
+
+## Reporting Security Vulnerabilities
+
+If you discover a security vulnerability in CollaboKeys, please **do not open a public GitHub issue**. Vulnerabilities should be kept private until a fix is available.
+
+Instead, email the maintainer directly at [makermax101@gmail.com](mailto:makermax101@gmail.com) with the following information:
+
+- **PROJECT:** The repository URL (`https://github.com/tinkerer9/CollaboKeys`)
+- **PUBLIC:** Whether this vulnerability has already been disclosed or discussed publicly, and where
+- **DESCRIPTION:** A precise description of the vulnerability, with as much detail as you are able and willing to provide
+
+This process is described in full in the repository's [`SECURITY.md`](https://github.com/tinkerer9/CollaboKeys/blob/main/SECURITY.md).
