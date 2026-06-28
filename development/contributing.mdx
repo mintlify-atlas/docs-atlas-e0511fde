@@ -4,7 +4,7 @@ sidebarTitle: "Contributing"
 description: "How to contribute to CollaboKeys: discuss changes via issues first, follow the pull request process, and adhere to the code of conduct."
 ---
 
-Contributions to CollaboKeys are welcome. Whether you are fixing a bug, adding a feature, or improving documentation, the project benefits from community involvement. This page explains the process for contributing so your work integrates smoothly.
+Contributions to CollaboKeys are welcome. This page explains the process for contributing so your work integrates smoothly with the project.
 
 ## Before You Start
 
@@ -16,98 +16,25 @@ All contributors are expected to follow the project's code of conduct in every i
 
 <Steps>
 
-<Step title="Open an issue or email to discuss">
-
-Before writing any code, open a [GitHub issue](https://github.com/tinkerer9/CollaboKeys/issues) describing the bug you want to fix or the feature you want to add. If you prefer, you can also reach the maintainer by email at [makermax101@gmail.com](mailto:makermax101@gmail.com). Getting early feedback saves time and avoids surprise rejections during review.
-
-</Step>
-
-<Step title="Fork and set up your development environment">
-
-Fork the repository on GitHub, then clone your fork and set up the project locally:
-
-```shell
-git clone https://github.com/<your-username>/CollaboKeys.git
-cd CollaboKeys
-npm install
-npm run compile
-```
-
-Run the app to confirm everything works before making changes:
-
-```shell
-npm start        # full Electron app
-# or
-npm test         # headless Node.js server (faster iteration)
-```
-
-See the [Building](/development/building) guide for full prerequisites and setup instructions.
-
-</Step>
-
-<Step title="Make your changes">
-
-Keep changes focused. One pull request should address one concern — a single bug fix, a single new feature, or a documentation update.
-
-Follow the code style already in use:
-
-- Every source file begins with the GPL-3.0 license header comment block.
-- A JSDoc-style `/* Description of what this file does. */` comment appears directly below the license header.
-- Module imports are grouped: built-in Node.js modules first, then third-party packages, then local modules.
-
-</Step>
-
 <Step title="Remove build artifacts">
 
-Ensure that any install or build dependencies (such as the compiled `src/emulate/helper` binary or the `dist/` folder) are **not included** in your pull request. Add them to `.gitignore` if they are not already excluded.
+Ensure that any install or build dependencies (such as the compiled `src/emulate/helper` binary or the `dist/` folder) are **not included** in your pull request before it is finalized.
 
 </Step>
 
 <Step title="Update the README">
 
-If your change affects the public interface — new configuration options, changed CLI commands, new environment variables, new ports, or new file locations — update `README.md` to reflect these changes.
+If your change affects the public interface — new environment variables, exposed ports, useful file locations, or other interface changes — update `README.md` to reflect those changes.
 
 </Step>
 
 <Step title="Bump the version number">
 
-Increase the version number in `package.json` (and any other files that reference it) to the new version this pull request would represent. CollaboKeys follows a numeric versioning scheme (e.g. `4.0.0`).
-
-</Step>
-
-<Step title="Submit the pull request">
-
-Open a pull request against the `main` branch of the original repository. Include a clear description of what you changed and why. Reference the related issue number if one exists (e.g. `Closes #42`).
+Increase the version numbers in any example files and in `README.md` to the new version that this pull request would represent.
 
 </Step>
 
 </Steps>
-
-## Reporting Bugs
-
-Use the GitHub issue tracker to report bugs:
-
-- **Bug reports:** [github.com/tinkerer9/CollaboKeys/issues](https://github.com/tinkerer9/CollaboKeys/issues)
-
-When filing a bug report, include:
-
-- Your macOS version and whether you are on Apple Silicon or Intel
-- The CollaboKeys version (`package.json` or the release tag)
-- Steps to reproduce the issue
-- What you expected to happen vs. what actually happened
-- Relevant log output from `logs/error.log` or `logs/combined.log`
-
-## Requesting Features
-
-Open a GitHub issue to request a feature. Describe the use case — what problem it solves and who benefits — before describing the implementation you have in mind.
-
-## License
-
-<Info>
-CollaboKeys is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. By contributing, you agree that your contribution will be distributed under the same license. Make sure any third-party code you incorporate is compatible with GPL-3.0 before including it.
-
-Every source file must carry the GPL-3.0 license header. If you add a new source file, copy the header from an existing file and update the copyright year and author fields as appropriate.
-</Info>
 
 ## Useful Links
 

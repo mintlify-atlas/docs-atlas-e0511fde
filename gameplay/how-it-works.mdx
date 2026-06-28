@@ -66,7 +66,7 @@ Here is the complete path from a physical keypress in the player's browser to an
    - The key is allowed for this player (`Key.keyAllowed(key, player.id)`)
    - The player has not exceeded their per-player key limit (`Config.player.maxReservedKeys`)
 6. **`keyboard.down(keyCode)`** — the macOS key code (e.g. `123` for ArrowLeft) is passed to `KeyboardHelper`, the native C bridge, which posts a `CGEventPost` key-down event to the system.
-7. **`socket.emit('keyup', key)`** — when the player releases the key, the same path runs through `handleKeyup()`, which calls `keyboard.up(keyCode)` to release the key on the host.
+7. **`socket.emit('keyup', key)`** — when the player releases the key, `handleKeyup()` calls `canType(player, key, false)`. For keyup events, `canType()` only runs the `player.canType()` guard (name set and not in waiting room) and then immediately returns `true` — the emulation toggle, rate limit, and key checks are skipped. If `allowHeldKeys` is `true`, `keyboard.up(keyCode)` is called to release the key on the host.
 
 ## Key Held vs. Quick Press
 

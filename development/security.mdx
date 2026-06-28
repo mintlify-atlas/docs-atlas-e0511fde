@@ -66,9 +66,9 @@ A value of `0` (the default) means no limit.
 
 **Only run on trusted networks.** CollaboKeys binds to `0.0.0.0`, making the server reachable by any device on the network. Avoid running it on public, shared, or untrusted Wi-Fi.
 
-<Tip>
-If you enable `adminPage.autoAuthHost` in `config.json`, the host device (connecting from `127.0.0.1`) is automatically authenticated without a password. This is convenient when you want to protect the admin page from other network devices while still accessing it quickly from the host.
-</Tip>
+<Warning>
+`adminPage.autoAuthHost` is **`true` by default** in `config.json`. This means any connection from `127.0.0.1` (i.e. the host machine itself) is automatically granted full admin access without a password — even when `adminPage.password` is set. If the host computer is shared or someone else has physical access to it, they can open a browser, navigate to `http://localhost:{port}/admin`, and gain unrestricted admin control without entering any credentials. Disable this by setting `adminPage.autoAuthHost` to `false` if you cannot fully trust everyone with access to the host machine.
+</Warning>
 
 ## Emergency Stop Procedures
 
@@ -78,7 +78,7 @@ If a malicious or unexpected player starts typing on the host Mac, use one of th
 
 <Step title="Use the admin page">
 
-If the admin page is open on any device, navigate to the **Controls** section and click **stop program**. This sends the `stop` command to the server, which terminates the process cleanly.
+If the admin page is open on any device, navigate to the **Controls** section and click the **stop** button. This sends the `stop` command to the server, which terminates the process cleanly.
 
 </Step>
 
@@ -91,12 +91,6 @@ Right-click (two-finger-click) the CollaboKeys icon in the Dock and select **Qui
 <Step title="Force Quit">
 
 Press **Command + Option + Escape** to open the Force Quit menu. Select **CollaboKeys** from the list and click **Force Quit**. Use this if the normal Quit option is unresponsive.
-
-</Step>
-
-<Step title="Physical disconnect (last resort)">
-
-If the above steps are not working fast enough, you can physically close your laptop lid to sleep the machine and cut off network activity, or disconnect the network cable / disable Wi-Fi from the menu bar. This immediately stops all key events from reaching the system.
 
 </Step>
 

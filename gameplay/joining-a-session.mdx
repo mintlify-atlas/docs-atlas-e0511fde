@@ -1,5 +1,5 @@
 ---
-title: "Join a CollaboKeys Session as a Player"
+title: "How to Join a CollaboKeys Session from Your Browser"
 sidebarTitle: "Joining a Session"
 description: "Players join a CollaboKeys session from any browser by navigating to the host's local IP address, choosing a username, and pressing keys to claim them."
 ---
@@ -30,13 +30,9 @@ Joining a CollaboKeys session requires nothing more than a web browser. There is
     Type a username into the **Username** field. Your username must meet all of these requirements:
 
     - Between **3 and 20 characters** long (inclusive)
-    - Contains only **alphanumeric characters** — letters `A–Z` (case-insensitive) and digits `0–9` — validated server-side against the `[a-zA-Z0-9]` regex
+    - Contains only **alphanumeric characters** — letters `a–z` or `A–Z` and digits `0–9` — validated server-side against the `[a-zA-Z0-9]` regex
 
     The input field automatically strips any non-alphanumeric characters as you type, so you will not be able to enter spaces or symbols.
-
-    <Note>
-      Usernames are case-insensitive on input, but will appear as entered in the Logs panel and admin page.
-    </Note>
   </Step>
   <Step title="Click Continue">
     Click the **Continue** button (or press Enter). The browser sends `socket.emit('setName', name)` to the server. The server validates the name length and regex, then responds with a `nameset` event if the name is valid.
@@ -51,6 +47,10 @@ Joining a CollaboKeys session requires nothing more than a web browser. There is
     From this point on, only your keys will register in the game. Pressing a key that belongs to another player will show an error message in your Logs panel.
   </Step>
 </Steps>
+
+## Your Player ID
+
+As soon as you connect to the server, it emits an `id` event with your numeric player ID. The browser handles this automatically — it logs your ID to the browser console (`Player ID: <n>`) and updates the page title to `(<n>) CollaboKeys Player`. You do not need to do anything with this ID as a player, but the host and admin can use it to identify you in console output and admin page lists (e.g. `waitingroom admit <id>`).
 
 ## The Logs Panel
 

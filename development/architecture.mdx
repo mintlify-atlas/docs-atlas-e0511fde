@@ -117,6 +117,24 @@ The per-minute counter is reset on the next clock-minute boundary using a one-sh
 
 ---
 
+### `src/public/alias.js` — Browser key name normalization
+
+`alias.js` is served as a static JavaScript file to every player's browser. It defines a lookup table (`aliases`) that maps shifted or alternate browser key names to their base key names, and exposes `originalKey(alias)` to resolve them:
+
+```javascript
+// Examples of what the aliases table contains:
+"A" → "a",  "B" → "b",  // uppercase → lowercase
+"!" → "1",  "@" → "2",  // shifted number row → base digit
+"_" → "-",  "+" → "=",  // shifted symbol → base symbol
+"{" → "[",  "}" → "]",
+":" → ";",  "\"" → "'",
+"<" → ",",  ">" → ".",  "?" → "/"
+```
+
+When a player presses a key, the browser emits the `key` property from the `KeyboardEvent`. For letters the browser reports the uppercase form when Shift is held (e.g. `"A"` instead of `"a"`). `originalKey()` normalises these variants back to the base key name that `keycodes.js` uses as its index, so the server always receives a consistent key identifier regardless of shift state.
+
+---
+
 ### `src/keycodes.js` — Key definitions
 
 `keycodes.js` exports the central `keycodes` object. Each entry maps a browser key name to a 4-element array:

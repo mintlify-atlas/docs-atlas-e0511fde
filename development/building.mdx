@@ -73,6 +73,10 @@ CollaboKeys will fail to emulate any keypresses if you skip this step. The `npm 
 
 The first time you run CollaboKeys, macOS will prompt you to grant Accessibility permission so the app can emulate keyboard events system-wide. Click **Open System Settings** and enable CollaboKeys (or the Terminal entry, when running `npm test`) in **Privacy & Security → Accessibility**.
 
+<Warning>
+Accessibility permission is required even when running from source — it is not exclusive to the packaged `.app`. When you run `npm start`, macOS will show the prompt with an **Electron** or **CollaboKeys** entry. When you run `npm test`, the permission entry will appear under **Terminal** (or whichever terminal application you are using). Without this permission, all keyboard emulation will silently fail regardless of which run mode you use.
+</Warning>
+
 </Step>
 
 </Steps>

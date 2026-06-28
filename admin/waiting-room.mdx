@@ -1,10 +1,14 @@
 ---
-title: "Managing the CollaboKeys Waiting Room"
+title: "Using the CollaboKeys Waiting Room to Gate Players"
 sidebarTitle: "Waiting Room"
 description: "The CollaboKeys waiting room lets you gate player access — new players wait until an admin admits them before they can press keys or join the game."
 ---
 
 The waiting room is an optional gate that prevents players from pressing keys until an admin explicitly lets them through. When a player is in the waiting room their `waitingRoom` flag is set, and `canType()` returns `false` — meaning any keydown events they send are silently ignored by the server. This makes the waiting room ideal for controlled game starts, tournament-style sessions, or any situation where you want to decide exactly when each participant becomes active.
+
+<Note>
+  Players who have not yet set a username are also blocked from typing, independently of the waiting room. `canType()` requires both that a name is set **and** that the player is not in the waiting room. A player admitted from the waiting room before they enter a name will still be unable to press keys until they set one.
+</Note>
 
 ## Enabling the Waiting Room
 

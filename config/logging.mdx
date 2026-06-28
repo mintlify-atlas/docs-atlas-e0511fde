@@ -1,7 +1,7 @@
 ---
 title: "CollaboKeys Logging: Files, Levels, and the Admin Log Stream"
 sidebarTitle: "Logging"
-description: "CollaboKeys uses Winston for structured logging. Log files are written to the logs/ directory and streamed live to the admin panel. Access logs via HTTP at /logs."
+description: "CollaboKeys uses Winston for logging. Covers log file locations, levels, the admin panel stream, console output, and HTTP log endpoints."
 ---
 
 CollaboKeys uses [Winston](https://github.com/winstonjs/winston) for structured JSON logging. Every significant event — player connections, keypresses, server startup, and errors — is captured with a timestamp and written to rotating log files. Logs can also be viewed live in the admin panel or fetched via HTTP at any time.
@@ -23,7 +23,7 @@ Winston log levels are ordered by descending severity. CollaboKeys uses the foll
 | `silly`   | Lowest   | Fine-grained diagnostic output                                 |
 
 <Note>
-  The logger is initialized at level `info`, meaning `verbose`, `debug`, and `silly` messages are not written to file or displayed in the console by default unless you explicitly add a transport at a lower level via `logs.logFileTypes`.
+  The logger is initialized at level `info`, meaning `http`, `verbose`, `debug`, and `silly` messages are not written to file or displayed in the console by default unless you explicitly add a transport for that level via `logs.logFileTypes`.
 </Note>
 
 ---

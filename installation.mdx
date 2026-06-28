@@ -1,7 +1,7 @@
 ---
-title: "Install CollaboKeys on macOS"
+title: "Install CollaboKeys on macOS: Download or Build from Source"
 sidebarTitle: "Installation"
-description: "Download the CollaboKeys DMG for macOS or build from source with Node.js. Includes Gatekeeper quarantine fix and macOS Accessibility permission setup."
+description: "Download the CollaboKeys DMG for macOS or build from source with Node.js. Includes the Gatekeeper quarantine fix and macOS Accessibility permission steps."
 ---
 
 Only the **host** — the Mac that will run the game — needs to install CollaboKeys. Players join through any web browser on their own device and need no installation whatsoever. Choose the method below that suits you best.
@@ -58,6 +58,12 @@ Building from source requires [Node.js](https://nodejs.org/en/download) to be in
     npm install
     ```
     This installs Socket.IO, Winston, Electron, and electron-builder from `package.json`.
+  </Step>
+  <Step title="Compile the native helper">
+    ```shell
+    npm run compile
+    ```
+    This compiles the native C key-emulation helper for your Mac before the app can run. **This step is required before `npm start`** — without it, CollaboKeys cannot emulate keypresses.
   </Step>
   <Step title="Start CollaboKeys">
     ```shell

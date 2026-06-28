@@ -27,16 +27,26 @@ Access to the admin panel is gated by an optional password configured in `src/co
 | Config key | Default | Behavior |
 |---|---|---|
 | `adminPage.password` | `""` (empty) | No password required; all visitors are auto-authenticated |
-| `adminPage.autoAuthHost` | `true` | Automatically authenticates any connection from the host device itself (`127.0.0.1` / `::1`) |
+| `adminPage.autoAuthHost` | `true` | When a password is set, automatically authenticates connections from the host device itself (`127.0.0.1`, `::1`, or `::ffff:127.0.0.1`) |
 
-When a password is set, a prompt appears before any controls are revealed. Entering the correct password emits an `authenticate` event to the `/admin` Socket.IO namespace; the server responds with an `authenticated` event and adds the session to the `admin` room.
+The server's authentication logic works in this order:
+
+1. If `adminPage.password` is `""` (empty string) → every visitor is auto-authenticated immediately, no prompt shown.
+2. Otherwise, if `adminPage.autoAuthHost` is `true` **and** the connecting IP is `127.0.0.1`, `::1`, or `::ffff:127.0.0.1` → the host device is auto-authenticated without a prompt.
+3. Otherwise → the password prompt is shown. Submitting it emits an `authenticate` event to the `/admin` Socket.IO namespace; the server verifies the value.
+
+After a successful authentication, the server emits an `authenticated` event back to the client and adds the session to the `admin` Socket.IO room, unlocking log streaming and command execution.
 
 <Warning>
   By default, `adminPage.password` is an empty string, which means **anyone on the local network can open the admin panel and take full control of the server**. It is strongly recommended to set a strong password in `src/config.json` before sharing the server URL with players.
 </Warning>
 
 <Note>
-  The `adminPage.autoAuthHost` option is `true` by default, so opening `/admin` on the host machine skips the password prompt regardless of what password is configured.
+  `adminPage.autoAuthHost` only bypasses the password prompt when a password **is** set. If the password is already empty, everyone is auto-authenticated regardless of IP address.
+</Note>
+
+<Note>
+  If `adminPage.enabled` is `false` in `src/config.json`, the server emits a `noAdmin` event to any connecting admin client and immediately disconnects them. The admin panel displays a disabled notice and all controls become inactive.
 </Note>
 
 ## Controls
@@ -112,7 +122,7 @@ Select a log type — **all logs** (combined), **error logs only**, or **warning
 
 ## Responses Panel
 
-Every command run from the admin panel echoes back a response. Responses are prepended to the list (newest at the top) and show both the command that was sent and the server's reply. Responses persist for the duration of the browser session.
+Every command run from the admin panel echoes back a response via the Socket.IO `response` event, which carries two arguments: the original command string and the server's output text. Responses are prepended to the list (newest at the top) and show both the command that was sent and the server's reply. Responses persist for the duration of the browser session.
 
 ## Logs Panel
 
@@ -128,5 +138,5 @@ The Logs panel is a live stream of server-side log messages pushed over Socket.I
 Log entries are color-coded: messages marked `good` appear in green, `bad` in red, and bold messages are used for key-press notifications. The Logs panel can be cleared with the **clear logs** button, but this only affects the admin panel's display — log files on the host filesystem are unaffected.
 
 <Note>
-  The admin panel connects over the Socket.IO namespace `/admin`. The `authenticated` event from the server confirms a successful login and joins the client to the `admin` room, after which log streaming and command execution become available.
+  The admin panel connects over the Socket.IO namespace `/admin`. Commands are sent as a `command` event; the server processes them and returns a `response` event with `(command, output)`. Log messages are streamed as `log` events pushed to all sessions in the `admin` room.
 </Note>

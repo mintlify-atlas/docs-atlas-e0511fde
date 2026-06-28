@@ -14,6 +14,18 @@ When `allowReservationAtStart` is `true` (the default) and a player presses a ke
 
 If `allowReservationAtStart` is `false` at startup, or auto-reservation is later disabled with `disable reservation`, players who press an unassigned key receive the message: *"Auto-reservation is disabled by admin."*
 
+### Checking a Key's Assignment
+
+The `key assign` command (alias: `key a`) does not directly assign a key to a player — direct admin assignment is not supported by the server. Instead, it prints guidance based on the key's current state:
+
+- If the key is **unassigned**: the server instructs you to ask the player to press it once so auto-reservation can assign it to them.
+- If the key is **already reserved**: the server suggests running `key revoke <keyname>` first to clear the existing assignment.
+
+```bash
+key assign a       # prints guidance for getting a player to claim 'a'
+key a space        # same using alias
+```
+
 ### Revoking Key Assignments
 
 Revoking a key clears its ownership so any player can claim it on their next press.
@@ -48,7 +60,9 @@ You can cap how many keys each player may hold simultaneously using the `player.
 |---|---|---|
 | `player.maxReservedKeys` | `0` | Maximum keys per player; `0` means no limit |
 
-When a player tries to claim a new key after reaching the limit, they see: *"You can't reserve any more keys."*
+The check uses a strict greater-than comparison (`keyCount > maxReservedKeys`), so a player is allowed to hold **exactly** `maxReservedKeys` keys — the limit is enforced only when they attempt to claim a key that would push them **over** that number. For example, setting `maxReservedKeys: 3` allows a player to hold 3 keys but blocks a 4th.
+
+When a player tries to claim a key that would exceed the limit, they see: *"You can't reserve any more keys."*
 
 ---
 

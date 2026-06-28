@@ -1,5 +1,5 @@
 ---
-title: "CollaboKeys Console Command Reference"
+title: "CollaboKeys Console Commands: Full Reference Guide"
 sidebarTitle: "Console Commands"
 description: "Full reference for all CollaboKeys console commands available via terminal or the admin panel's custom command box, including aliases and argument syntax."
 ---
@@ -112,9 +112,9 @@ disable <emulation|reservation>
 
 ```bash
 disable emulation
-disable d e       # same as above using command alias + arg alias
+d e               # same as above using command alias + arg alias
 disable reservation
-disable r         # same as above (alias)
+d r               # same as above using command alias + arg alias
 ```
 
 ---
@@ -220,11 +220,12 @@ wr d all           # dismiss all players using aliases
 Modifies a key's assignment or enabled status.
 
 ```bash
-key <revoke|enable|disable> <keyname|all>
+key <assign|revoke|enable|disable> <keyname|all>
 ```
 
 <ParamField path="action" type="string" required>
   The action to perform:
+  - `assign` (alias: `a`) — looks up the key's current state and prints guidance. If the key is already reserved, the server suggests using `key revoke` first; otherwise it instructs you to ask the player to press the key once so it auto-reserves to them. **Note:** direct assignment via this command is not supported — keys are claimed by players pressing them (auto-reservation).
   - `revoke` (alias: `r`) — clears the key's player assignment so anyone can claim it again
   - `enable` (alias: `e`) — marks the key as available for emulation
   - `disable` (alias: `d`) — blocks emulation for this key even if a player has it assigned
@@ -232,12 +233,13 @@ key <revoke|enable|disable> <keyname|all>
 
 <ParamField path="target" type="string" required>
   - A valid key name (e.g. `a`, `space`, `return`, `'caps lock'`)
-  - `all` — applies the action to every key in the keycodes table
+  - `all` — applies the action to every key in the keycodes table (not meaningful for `assign`)
 </ParamField>
 
 **Examples:**
 
 ```bash
+key assign a       # prints guidance for getting player to claim 'a'
 key revoke a
 key revoke all
 key enable space
@@ -309,6 +311,6 @@ l warn
 | `press` | `type` | `<key> [press\|down\|up]` | Manually emulate a key event |
 | `list` | `ls` | `[all\|active\|wr\|nameless]` | List players |
 | `waitingroom` | `wr` | `<admit\|dismiss> <id\|all>` | Admit or dismiss players |
-| `key` | `k` | `<revoke\|enable\|disable> <keyname\|all>` | Manage key assignment or enabled status |
+| `key` | `k` | `<assign\|revoke\|enable\|disable> <keyname\|all>` | Manage key assignment or enabled status |
 | `keycodes` | `kc` | — | Show keycodes table |
 | `logs` | `l` | `[combined\|error\|warn]` | Show log file path and URL |
